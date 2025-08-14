@@ -1,18 +1,20 @@
 /**
- * LLM Verification for PII Detection
- * Handles LLM-based verification and enhancement of PII detections
+ * Enhanced LLM Verification for PII Detection
+ * Handles LLM-based verification and enhancement of PII detections with enterprise-grade capabilities
  */
 
 import { PIIDetection, LLMVerificationRequest, LLMVerificationResponse, DetectionSource } from '../types/pii-types';
-import { callLLM } from '../config/llm-config';
+import { callLLM, LLMResponse, LLMDetection } from '../config/llm-config';
 import { errorHandler, PIIErrorType } from '../utils/error-handler';
 import { detectionConfig } from '../config/detection-config';
 
 /**
- * LLM verifier class for PII detection verification
+ * Enhanced LLM verifier class for PII detection verification
  */
 export class LLMVerifier {
   private config = detectionConfig.getDetectionConfig();
+  private lastVerificationTime = 0;
+  private verificationCache = new Map<string, PIIDetection[]>();
 
   /**
    * Verify and enhance PII detections using LLM
@@ -31,6 +33,14 @@ export class LLMVerifier {
     }
 
     try {
+      // Check cache for recent verifications
+      const cacheKey = this.generateCacheKey(fullText, patternDetections);
+      const cachedResult = this.verificationCache.get(cacheKey);
+      if (cachedResult && Date.now() - this.lastVerificationTime < 300000) { // 5 minute cache
+        console.log('Using cached LLM verification result');
+        return cachedResult;
+      }
+
       const request: LLMVerificationRequest = {
         fullText,
         patternDetections,
@@ -38,7 +48,13 @@ export class LLMVerifier {
       };
 
       const response = await this.callLLMForVerification(request);
-      return this.processLLMResponse(response, patternDetections);
+      const verifiedDetections = this.processLLMResponse(response, patternDetections);
+      
+      // Cache the result
+      this.verificationCache.set(cacheKey, verifiedDetections);
+      this.lastVerificationTime = Date.now();
+      
+      return verifiedDetections;
     } catch (error) {
       errorHandler.handleLLMError('llm_verification', error as Error);
       return patternDetections; // Fallback to pattern detections
@@ -46,63 +62,83 @@ export class LLMVerifier {
   }
 
   /**
-   * Call LLM for verification
+   * Call LLM for verification with enhanced context
    * @param request - Verification request
    * @returns LLM response
    */
-  private async callLLMForVerification(request: LLMVerificationRequest): Promise<string | null> {
-    const prompt = this.buildVerificationPrompt(request);
-    return await callLLM(prompt);
+  private async callLLMForVerification(request: LLMVerificationRequest): Promise<LLMResponse> {
+    const prompt = this.buildEnhancedVerificationPrompt(request);
+    const context = this.buildContext(request);
+    return await callLLM(prompt, context);
   }
 
   /**
-   * Build verification prompt for LLM
+   * Build enhanced verification prompt for LLM
    * @param request - Verification request
    * @returns Formatted prompt
    */
-  private buildVerificationPrompt(request: LLMVerificationRequest): string {
+  private buildEnhancedVerificationPrompt(request: LLMVerificationRequest): string {
     const { fullText, patternDetections, context } = request;
     
     const detectionContext = patternDetections.map(d => ({
       type: d.type,
       text: d.text,
       confidence: d.confidence,
-      line: d.line
+      line: d.line,
+      source: d.source
     }));
 
-    return `Verify and enhance the following PII detections found in this text:
+    return `You are an expert PII verification system. Analyze the following text and verify/enhance PII detections.
 
-TEXT: "${this.sanitizeText(fullText)}"
+TEXT TO ANALYZE:
+"${this.sanitizeText(fullText)}"
 
-PATTERN DETECTIONS: ${JSON.stringify(detectionContext, null, 2)}
+EXISTING DETECTIONS TO VERIFY:
+${JSON.stringify(detectionContext, null, 2)}
 
 ${context ? `ADDITIONAL CONTEXT: ${context}` : ''}
 
-Please:
-1. Verify each detected PII is actually PII (not false positives)
-2. Adjust confidence scores based on context
+VERIFICATION TASKS:
+1. Verify each detected PII is actually sensitive information (not false positives)
+2. Adjust confidence scores based on context and pattern strength
 3. Add any missed PII that pattern matching didn't catch
 4. Provide bounding box estimates for new detections
+5. Include reasoning for verification decisions
 
-Return a JSON array of verified detections with:
-- type: PII category
-- text: exact text found
-- confidence: adjusted confidence (0.0-1.0)
-- line: line number
-- boundingBox: {x, y, width, height}
-- verified: true/false (whether this was verified by LLM)
-
-Example response:
+Return a JSON array of verified detections with this exact structure:
 [
   {
-    "type": "credit_card",
-    "text": "1234-5678-9012-3456",
-    "confidence": 0.98,
+    "type": "pii_category",
+    "text": "exact_text_found",
+    "confidence": 0.95,
     "line": 0,
     "boundingBox": {"x": 100, "y": 50, "width": 200, "height": 30},
-    "verified": true
+    "verified": true,
+    "reasoning": "explanation of verification decision"
   }
-]`;
+]
+
+IMPORTANT: Only return valid JSON. No additional text outside the JSON array.`;
+  }
+
+  /**
+   * Build context for LLM analysis
+   * @param request - Verification request
+   * @returns Context string
+   */
+  private buildContext(request: LLMVerificationRequest): string {
+    const { fullText, patternDetections } = request;
+    
+    const context = [
+      `Text length: ${fullText.length} characters`,
+      `Number of lines: ${fullText.split('\n').length}`,
+      `Pattern detections found: ${patternDetections.length}`,
+      `Detection types: ${[...new Set(patternDetections.map(d => d.type))].join(', ')}`,
+      `Average confidence: ${patternDetections.length > 0 ? 
+        (patternDetections.reduce((sum, d) => sum + d.confidence, 0) / patternDetections.length).toFixed(2) : '0'}`
+    ];
+    
+    return context.join(' | ');
   }
 
   /**
@@ -119,21 +155,22 @@ Example response:
   }
 
   /**
-   * Process LLM response
+   * Process LLM response with enhanced parsing
    * @param llmResponse - Raw LLM response
    * @param patternDetections - Original pattern detections
    * @returns Processed PII detections
    */
   private processLLMResponse(
-    llmResponse: string | null,
+    llmResponse: LLMResponse,
     patternDetections: PIIDetection[]
   ): PIIDetection[] {
-    if (!llmResponse) {
+    if (!llmResponse.success || !llmResponse.data) {
+      console.warn('LLM verification failed:', llmResponse.error);
       return patternDetections;
     }
 
     try {
-      const verifiedDetections = this.parseLLMResponse(llmResponse);
+      const verifiedDetections = this.parseLLMResponse(llmResponse.data);
       return this.mergeDetections(verifiedDetections, patternDetections);
     } catch (error) {
       errorHandler.handleLLMError('response_parsing', error as Error);
@@ -142,20 +179,22 @@ Example response:
   }
 
   /**
-   * Parse LLM response
+   * Parse LLM response with enhanced error handling
    * @param response - LLM response string
    * @returns Parsed detections
    */
-  private parseLLMResponse(response: string): any[] {
+  private parseLLMResponse(response: string): LLMDetection[] {
     try {
       // Try to extract JSON from response
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        return Array.isArray(parsed) ? parsed : [];
       }
       
       // Fallback to parsing entire response
-      return JSON.parse(response);
+      const parsed = JSON.parse(response);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (parseError) {
       errorHandler.handleLLMError('json_parsing', parseError as Error);
       return [];
@@ -169,14 +208,17 @@ Example response:
    * @returns Merged detections
    */
   private mergeDetections(
-    llmDetections: any[],
+    llmDetections: LLMDetection[],
     patternDetections: PIIDetection[]
   ): PIIDetection[] {
     const finalDetections: PIIDetection[] = [];
+    const processedPatternDetections = new Set<string>();
 
     // Process LLM detections
-    llmDetections.forEach((detection: any) => {
+    llmDetections.forEach((detection: LLMDetection) => {
       if (this.isValidDetection(detection)) {
+        const detectionKey = `${detection.type}:${detection.text}`;
+        
         if (detection.verified === true) {
           // Use LLM confidence for verified detections
           finalDetections.push({
@@ -188,6 +230,9 @@ Example response:
             source: 'llm' as DetectionSource,
             verified: true,
           });
+          
+          // Mark corresponding pattern detection as processed
+          processedPatternDetections.add(detectionKey);
         } else {
           // For unverified detections, reduce confidence
           const originalDetection = patternDetections.find(d => 
@@ -199,6 +244,7 @@ Example response:
               confidence: Math.max(originalDetection.confidence * 0.7, 0.3),
               verified: false,
             });
+            processedPatternDetections.add(detectionKey);
           }
         }
       }
@@ -206,10 +252,8 @@ Example response:
 
     // Add any pattern detections that weren't processed by LLM
     patternDetections.forEach(patternDetection => {
-      const wasProcessed = finalDetections.some(d => 
-        d.text === patternDetection.text && d.type === patternDetection.type
-      );
-      if (!wasProcessed) {
+      const detectionKey = `${patternDetection.type}:${patternDetection.text}`;
+      if (!processedPatternDetections.has(detectionKey)) {
         finalDetections.push({
           ...patternDetection,
           verified: false,
@@ -230,8 +274,38 @@ Example response:
       detection &&
       typeof detection.type === 'string' &&
       typeof detection.text === 'string' &&
-      detection.text.length > 0
+      detection.text.length > 0 &&
+      typeof detection.confidence === 'number' &&
+      detection.confidence >= 0 &&
+      detection.confidence <= 1
     );
+  }
+
+  /**
+   * Generate cache key for verification results
+   * @param fullText - Full text content
+   * @param patternDetections - Pattern detections
+   * @returns Cache key
+   */
+  private generateCacheKey(fullText: string, patternDetections: PIIDetection[]): string {
+    const textHash = this.simpleHash(fullText.substring(0, 1000)); // Use first 1000 chars
+    const detectionsHash = this.simpleHash(JSON.stringify(patternDetections));
+    return `${textHash}-${detectionsHash}`;
+  }
+
+  /**
+   * Simple hash function for cache keys
+   * @param str - String to hash
+   * @returns Hash value
+   */
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
   }
 
   /**
@@ -244,6 +318,8 @@ Example response:
     verified: number;
     unverified: number;
     averageConfidence: number;
+    llmDetections: number;
+    patternDetections: number;
   } {
     const total = detections.length;
     const verified = detections.filter(d => d.verified).length;
@@ -251,12 +327,16 @@ Example response:
     const averageConfidence = total > 0 
       ? detections.reduce((sum, d) => sum + d.confidence, 0) / total 
       : 0;
+    const llmDetections = detections.filter(d => d.source === 'llm').length;
+    const patternDetections = detections.filter(d => d.source === 'pattern').length;
 
     return {
       total,
       verified,
       unverified,
       averageConfidence,
+      llmDetections,
+      patternDetections,
     };
   }
 
@@ -274,6 +354,28 @@ Example response:
    */
   public updateConfig(newConfig: Partial<typeof this.config>): void {
     this.config = { ...this.config, ...newConfig };
+  }
+
+  /**
+   * Clear verification cache
+   */
+  public clearCache(): void {
+    this.verificationCache.clear();
+    this.lastVerificationTime = 0;
+  }
+
+  /**
+   * Get cache statistics
+   * @returns Cache statistics
+   */
+  public getCacheStats(): {
+    size: number;
+    lastVerification: number;
+  } {
+    return {
+      size: this.verificationCache.size,
+      lastVerification: this.lastVerificationTime,
+    };
   }
 }
 

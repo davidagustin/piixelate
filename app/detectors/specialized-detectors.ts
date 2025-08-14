@@ -15,7 +15,7 @@ export class SpecializedDetector {
   private config = detectionConfig.getDetectionConfig();
 
   /**
-   * Detect document regions (driver's licenses, IDs, etc.)
+   * Detect document regions (driver's licenses, IDs, credit cards, etc.)
    * @param ocrResult - OCR processing result
    * @returns Array of document detections
    */
@@ -28,11 +28,11 @@ export class SpecializedDetector {
       const documentDetections: PIIDetection[] = [];
       const fullText = ocrResult.text.toLowerCase();
       
-      // Check if this looks like a driver's license or ID card
-      const isLicense = this.isLicenseDocument(fullText);
+      // Check for different document types
+      const documentType = this.identifyDocumentType(fullText);
       
-      if (isLicense) {
-        const detection = this.createDocumentDetection(ocrResult);
+      if (documentType) {
+        const detection = this.createDocumentDetection(ocrResult, documentType);
         if (detection) {
           documentDetections.push(detection);
         }
@@ -46,31 +46,81 @@ export class SpecializedDetector {
   }
 
   /**
-   * Check if text represents a license document
-   * @param text - Text to check
-   * @returns True if license document
+   * Identify the type of document based on text content
+   * @param text - Text to analyze
+   * @returns Document type or null
    */
-  private isLicenseDocument(text: string): boolean {
-    const licenseIndicators = [
-      'driver license',
-      'id card',
-      'hawaii',
-      'honolulu',
-      'california',
-      'state of',
-      'department of motor vehicles',
-      'dmv',
+  private identifyDocumentType(text: string): string | null {
+    // Credit card indicators
+    const creditCardIndicators = [
+      'visa', 'mastercard', 'amex', 'discover', 'jcb', 'diners',
+      'valid thru', 'expires', 'expiry', 'card number', 'card no',
+      'credit card', 'debit card'
     ];
     
-    return licenseIndicators.some(indicator => text.includes(indicator));
+    // Driver's license indicators
+    const licenseIndicators = [
+      'driver license', 'drivers license', 'driving license',
+      'id card', 'identification card', 'state id',
+      'hawaii', 'california', 'new york', 'texas', 'florida',
+      'department of motor vehicles', 'dmv', 'organ donor'
+    ];
+    
+    // Passport indicators
+    const passportIndicators = [
+      'passport', 'passport number', 'passport no',
+      'united states', 'usa', 'republic of', 'nationality'
+    ];
+    
+    // Government ID indicators
+    const governmentIdIndicators = [
+      'government id', 'state identification', 'official id',
+      'federal id', 'national id', 'citizen id'
+    ];
+    
+    // Employee/Student ID indicators
+    const employeeIdIndicators = [
+      'employee id', 'student id', 'member id',
+      'staff id', 'faculty id', 'university id'
+    ];
+    
+    // Check for credit card (highest priority for privacy)
+    if (creditCardIndicators.some(indicator => text.includes(indicator))) {
+      return 'credit_card';
+    }
+    
+    // Check for driver's license
+    if (licenseIndicators.some(indicator => text.includes(indicator))) {
+      return 'drivers_license';
+    }
+    
+    // Check for passport
+    if (passportIndicators.some(indicator => text.includes(indicator))) {
+      return 'passport_number';
+    }
+    
+    // Check for government ID
+    if (governmentIdIndicators.some(indicator => text.includes(indicator))) {
+      return 'id_card';
+    }
+    
+    // Check for employee/student ID
+    if (employeeIdIndicators.some(indicator => text.includes(indicator))) {
+      return 'id_card';
+    }
+    
+    return null;
   }
+
+
 
   /**
    * Create document detection for entire document
    * @param ocrResult - OCR processing result
+   * @param documentType - Type of document detected
    * @returns Document detection or null
    */
-  private createDocumentDetection(ocrResult: OCRResult): PIIDetection | null {
+  private createDocumentDetection(ocrResult: OCRResult, documentType: string): PIIDetection | null {
     const allLines = ocrResult.lines;
     if (allLines.length === 0) {
       return null;
@@ -87,17 +137,20 @@ export class SpecializedDetector {
       maxY = Math.max(maxY, bbox.y1);
     });
     
-    // Add some padding around the document
-    const padding = 20;
+    // Add generous padding around the document for complete coverage
+    // Credit cards and IDs need more padding to ensure complete coverage
+    const basePadding = 40;
+    const extraPadding = documentType === 'credit_card' ? 60 : 40;
+    const totalPadding = basePadding + extraPadding;
     
     return {
-      type: 'drivers_license',
-      confidence: 0.95,
+      type: documentType as any,
+      confidence: 0.98, // High confidence for document detection
       boundingBox: {
-        x: Math.max(0, minX - padding),
-        y: Math.max(0, minY - padding),
-        width: maxX - minX + (padding * 2),
-        height: maxY - minY + (padding * 2)
+        x: Math.max(0, minX - totalPadding),
+        y: Math.max(0, minY - totalPadding),
+        width: maxX - minX + (totalPadding * 2),
+        height: maxY - minY + (totalPadding * 2)
       },
       text: 'DRIVER LICENSE DOCUMENT',
       line: 0,

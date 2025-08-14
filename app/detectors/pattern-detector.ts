@@ -97,12 +97,54 @@ export class PatternDetector {
           
           if (detection) {
             detections.push(detection);
+            
+            // For credit cards, also create a document-level detection
+            if (piiType === 'credit_card') {
+              const documentDetection = this.createDocumentLevelDetection(line, fullText);
+              if (documentDetection) {
+                detections.push(documentDetection);
+              }
+            }
           }
         });
       });
     });
 
     return detections;
+  }
+
+  /**
+   * Create document-level detection for credit cards
+   * @param line - OCR line data
+   * @param fullText - Full text for context
+   * @returns Document-level detection or null
+   */
+  private createDocumentLevelDetection(
+    line: OCRResult['lines'][0], 
+    fullText: string
+  ): PIIDetection | null {
+    try {
+      // Create a larger bounding box around the credit card
+      const bbox = line.bbox;
+      const padding = 80; // Large padding for complete card coverage
+      
+      return {
+        type: 'credit_card',
+        confidence: 0.95,
+        boundingBox: {
+          x: Math.max(0, bbox.x0 - padding),
+          y: Math.max(0, bbox.y0 - padding),
+          width: bbox.x1 - bbox.x0 + (padding * 2),
+          height: bbox.y1 - bbox.y0 + (padding * 2)
+        },
+        text: 'CREDIT CARD DOCUMENT',
+        line: 0,
+        source: 'pattern'
+      };
+    } catch (error) {
+      console.error('Error creating document-level detection:', error);
+      return null;
+    }
   }
 
   /**

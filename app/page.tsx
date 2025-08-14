@@ -330,53 +330,43 @@ export default function PIIxelate() {
   };
 
   // Test function to verify pattern detection
-  const testPatternDetection = () => {
-    const testText = "Card: 9012 5678 1234 2345, Name: TAYLOR SULLIVAN, Valid: 01/27";
-    const driverLicenseText = "HAWAII DRIVER LICENSE 01-47-87441 DOB 06/03/1981 McLOVIN";
-    const idCardText = "STATE ID CARD NUMBER: ABC123456789 ISSUED: 01/15/2023";
+  const testPatternDetection = async () => {
+    console.log('Testing pattern detection system...');
     
-    console.log('Testing pattern detection...');
-    
-    // Test credit card patterns
-    const creditCardPatterns = [
-      /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/,
-      /\b(?:VISA|MASTERCARD|AMEX|DISCOVER|JCB|DINERS)\b/gi,
-      /\b(?:VALID THRU|EXPIRES|EXP|EXPIRY)\s*[:=]?\s*\d{1,2}\/\d{2,4}\b/gi
-    ];
-    
-    creditCardPatterns.forEach((pattern, index) => {
-      const match = testText.match(pattern);
-      console.log(`Credit card pattern ${index + 1} match:`, match);
-    });
-    
-    // Test driver's license patterns
-    const driverLicensePatterns = [
-      /\b\d{2}-\d{2}-\d{5}\b/,
-      /\b(?:DRIVER|DRIVERS|DRIVING)\s*(?:LICENSE|LIC|ID)\b/gi,
-      /\b(?:ORGAN DONOR|DONOR)\b/gi
-    ];
-    
-    driverLicensePatterns.forEach((pattern, index) => {
-      const match = driverLicenseText.match(pattern);
-      console.log(`Driver's license pattern ${index + 1} match:`, match);
-    });
-    
-    // Test ID card patterns
-    const idCardPatterns = [
-      /\b(?:ID|IDENTIFICATION|IDENTITY)\s*(?:CARD|DOCUMENT|NUMBER|NO)\b/gi,
-      /\b(?:STATE|GOVERNMENT|NATIONAL)\s*(?:ID|IDENTIFICATION)\s*(?:CARD|DOCUMENT)\b/gi,
-      /\b(?:ID|IDENTIFICATION)\s*(?:NUMBER|NO|NUM)\s*[:=]?\s*[A-Z0-9\-]{6,15}\b/gi
-    ];
-    
-    idCardPatterns.forEach((pattern, index) => {
-      const match = idCardText.match(pattern);
-      console.log(`ID card pattern ${index + 1} match:`, match);
-    });
-    
-    // Test name pattern
-    const namePattern = /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/;
-    const nameMatch = testText.match(namePattern);
-    console.log('Name match:', nameMatch);
+    try {
+      // Test with sample text that should trigger detections
+      const testText = "HAWAII DRIVER LICENSE 01-47-87441 McLovin 06/03/1981 06/03/2008 892 MOMONA ST HONOLULU HI 96820 ORGAN DONOR";
+      
+      // Create a mock OCR result
+      const mockOCRResult = {
+        text: testText,
+        lines: [
+          { text: "HAWAII DRIVER LICENSE", bbox: { x0: 0, y0: 0, x1: 200, y1: 30 } },
+          { text: "01-47-87441", bbox: { x0: 0, y0: 40, x1: 150, y1: 60 } },
+          { text: "McLovin", bbox: { x0: 0, y0: 70, x1: 100, y1: 90 } },
+          { text: "06/03/1981", bbox: { x0: 0, y0: 100, x1: 120, y1: 120 } },
+          { text: "892 MOMONA ST HONOLULU HI 96820", bbox: { x0: 0, y0: 130, x1: 300, y1: 150 } }
+        ]
+      };
+      
+      // Import and test the pattern detector
+      const { patternDetector } = await import('./detectors/pattern-detector');
+      const detections = await patternDetector.detectPII(mockOCRResult);
+      
+      console.log('Pattern detection test results:', detections);
+      
+      // Show results to user
+      if (detections.length > 0) {
+        setSuccess(`Test completed! Found ${detections.length} PII elements: ${detections.map(d => d.type).join(', ')}`);
+        setDetections(detections);
+      } else {
+        setError('Test completed but no PII was detected in the test data');
+      }
+      
+    } catch (error) {
+      console.error('Pattern detection test failed:', error);
+      setError(`Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
