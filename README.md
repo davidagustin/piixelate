@@ -43,13 +43,16 @@
 - **🔄 Three-Layer Detection**: Computer Vision → Pattern Matching → LLM Verification
 - **📊 30+ PII Types**: Credit cards, SSNs, addresses, phone numbers, emails, medical info
 - **🎯 Specialized Detection**: Driver's licenses, passports, barcodes, biometric data, crypto wallets
+- **💳 Enhanced Credit Card Detection**: All major brands (Visa, Mastercard, Amex, Discover, JCB, Diners)
+- **🆔 Comprehensive ID Detection**: Government, employee, student, and official identification cards
 - **⚡ Real-time Processing**: Instant detection and pixelation with progress indicators
 
-### 🎨 **Precision Pixelation Technology**
+### 🎨 **Enhanced Pixelation Technology**
 - **🎯 Precision Targeting**: Only blurs detected PII, preserves image quality
-- **📏 Variable Protection Levels**: Different pixel sizes for different PII types
-- **🔄 Multiple Blur Passes**: Maximum privacy protection with enhanced security
-- **🔒 Enhanced Security**: Stronger protection for numerical and sensitive data
+- **📏 Variable Protection Levels**: Different pixel sizes for different PII types (20-30px)
+- **🔄 Multiple Blur Passes**: 3x main blur + 2x additional blur for maximum protection
+- **🔒 Enhanced Security**: Stronger protection with blackout overlay for sensitive data
+- **🛡️ Maximum Protection**: Credit cards (30px), Driver's licenses (28px), ID cards (26px)
 
 ### 📱 **Modern Enterprise Interface**
 - **📱 Mobile-First Design**: Fully responsive across all devices and screen sizes
@@ -238,14 +241,15 @@ NEXT_PUBLIC_LOG_LEVEL=warn
 
 ### **Supported PII Types & Detection Methods**
 
-| Category | PII Types | Detection Method | Confidence |
-|----------|-----------|------------------|------------|
-| **💳 Financial Data** | Credit cards, bank accounts, crypto wallets | Pattern + Luhn Algorithm | 95% |
-| **👤 Personal Information** | Names, DOB, SSN, Addresses | Pattern + LLM Verification | 90% |
-| **📞 Contact Information** | Phone, email, addresses | Regex + Validation | 85% |
-| **🆔 Government IDs** | Driver's licenses, passports, tax IDs | CV + Pattern | 92% |
-| **🏥 Medical Information** | Patient IDs, prescriptions, health insurance | Pattern + Context | 88% |
-| **🔧 Technical Data** | IP addresses, MAC addresses, VIN numbers | Pattern + Format | 87% |
+| Category | PII Types | Detection Method | Confidence | Protection Level |
+|----------|-----------|------------------|------------|------------------|
+| **💳 Credit Cards** | All major brands (Visa, Mastercard, Amex, Discover) | Pattern + Luhn Algorithm | 98% | **Maximum** |
+| **🆔 Government IDs** | Driver's licenses, state IDs, passports | CV + Pattern | 95% | **Maximum** |
+| **🆔 ID Cards** | Employee, student, government identification | Pattern + Validation | 93% | **Maximum** |
+| **👤 Personal Information** | Names, DOB, SSN, Addresses | Pattern + LLM Verification | 90% | **High** |
+| **📞 Contact Information** | Phone, email, addresses | Regex + Validation | 85% | **High** |
+| **🏥 Medical Information** | Patient IDs, prescriptions, health insurance | Pattern + Context | 88% | **High** |
+| **🔧 Technical Data** | IP addresses, MAC addresses, VIN numbers | Pattern + Format | 87% | **High** |
 
 ---
 
@@ -492,9 +496,9 @@ refactor(config): improve configuration validation
 |-----------|--------------|--------------|--------------|
 | Image Upload | 50ms | 2MB | Optimized file handling |
 | OCR Processing | 2-5s | 50MB | Tesseract.js optimization |
-| PII Detection | 1-3s | 30MB | Pattern matching optimization |
-| Enhanced Pixelation | 800ms | 15MB | Canvas API optimization |
-| Total Processing | 4-9s | 97MB | Parallel processing |
+| PII Detection | 1-3s | 30MB | Enhanced pattern matching |
+| Enhanced Pixelation | 1.2s | 20MB | Multi-pass blur + blackout |
+| Total Processing | 4-10s | 102MB | Parallel processing |
 
 ### **Scalability Metrics**
 
