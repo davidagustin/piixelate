@@ -332,12 +332,46 @@ export default function PIIxelate() {
   // Test function to verify pattern detection
   const testPatternDetection = () => {
     const testText = "Card: 9012 5678 1234 2345, Name: TAYLOR SULLIVAN, Valid: 01/27";
-    console.log('Testing pattern detection with:', testText);
+    const driverLicenseText = "HAWAII DRIVER LICENSE 01-47-87441 DOB 06/03/1981 McLOVIN";
+    const idCardText = "STATE ID CARD NUMBER: ABC123456789 ISSUED: 01/15/2023";
     
-    // Test credit card pattern
-    const creditCardPattern = /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/;
-    const match = testText.match(creditCardPattern);
-    console.log('Credit card match:', match);
+    console.log('Testing pattern detection...');
+    
+    // Test credit card patterns
+    const creditCardPatterns = [
+      /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/,
+      /\b(?:VISA|MASTERCARD|AMEX|DISCOVER|JCB|DINERS)\b/gi,
+      /\b(?:VALID THRU|EXPIRES|EXP|EXPIRY)\s*[:=]?\s*\d{1,2}\/\d{2,4}\b/gi
+    ];
+    
+    creditCardPatterns.forEach((pattern, index) => {
+      const match = testText.match(pattern);
+      console.log(`Credit card pattern ${index + 1} match:`, match);
+    });
+    
+    // Test driver's license patterns
+    const driverLicensePatterns = [
+      /\b\d{2}-\d{2}-\d{5}\b/,
+      /\b(?:DRIVER|DRIVERS|DRIVING)\s*(?:LICENSE|LIC|ID)\b/gi,
+      /\b(?:ORGAN DONOR|DONOR)\b/gi
+    ];
+    
+    driverLicensePatterns.forEach((pattern, index) => {
+      const match = driverLicenseText.match(pattern);
+      console.log(`Driver's license pattern ${index + 1} match:`, match);
+    });
+    
+    // Test ID card patterns
+    const idCardPatterns = [
+      /\b(?:ID|IDENTIFICATION|IDENTITY)\s*(?:CARD|DOCUMENT|NUMBER|NO)\b/gi,
+      /\b(?:STATE|GOVERNMENT|NATIONAL)\s*(?:ID|IDENTIFICATION)\s*(?:CARD|DOCUMENT)\b/gi,
+      /\b(?:ID|IDENTIFICATION)\s*(?:NUMBER|NO|NUM)\s*[:=]?\s*[A-Z0-9\-]{6,15}\b/gi
+    ];
+    
+    idCardPatterns.forEach((pattern, index) => {
+      const match = idCardText.match(pattern);
+      console.log(`ID card pattern ${index + 1} match:`, match);
+    });
     
     // Test name pattern
     const namePattern = /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/;

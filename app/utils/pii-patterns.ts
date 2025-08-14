@@ -19,6 +19,9 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/,
     /\b\d{4}[- ]?\d{6}[- ]?\d{5}\b/, // Amex format
     /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{3}\b/, // 15-digit cards
+    /\b(?:VISA|MASTERCARD|AMEX|DISCOVER|JCB|DINERS)\b/gi, // Card brands
+    /\b(?:VALID THRU|EXPIRES|EXP|EXPIRY)\s*[:=]?\s*\d{1,2}\/\d{2,4}\b/gi, // Expiry dates
+    /\b(?:CARD|CARD NUMBER|CARD NO|CARDNUM)\s*[:=]?\s*\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/gi, // Card labels
   ],
   
   // Phone number patterns
@@ -71,6 +74,10 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b\d{1,2}\/\d{2}\/\d{4}\b/, // Date formats like 06/03/2008
     /\b(?:HT|WT|HAIR|EYES|SEX)\s*[:=]\s*\S+\b/gi, // Physical characteristics
     /\b(?:ISSUE DATE|CLASS|RESTR|ENDORSE)\s*[:=]\s*\S+\b/gi, // License fields
+    /\b(?:DRIVER|DRIVERS|DRIVING)\s*(?:LICENSE|LIC|ID)\b/gi, // License labels
+    /\b(?:LICENSE|LIC)\s*(?:NUMBER|NO|NUM)\s*[:=]?\s*[A-Z0-9\-]{6,12}\b/gi, // License number labels
+    /\b(?:ORGAN DONOR|DONOR)\b/gi, // Organ donor status
+    /\b(?:HEIGHT|WEIGHT|HAIR|EYES|SEX|RESTRICTIONS|ENDORSEMENTS)\s*[:=]\s*\S+\b/gi, // Physical characteristics
   ],
   
   // Passport numbers (international formats)
@@ -79,6 +86,17 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b\d{9}\b/g, // 9-digit passport numbers
     /\b[A-Z]\d{8}\b/gi, // 8-digit with letter prefix
     /\b(?:PASSPORT|PASSPORT NO|PASSPORT NUMBER)\s*[:=]?\s*[A-Z0-9]{6,9}\b/gi,
+  ],
+  
+  // ID Card patterns (comprehensive)
+  id_card: [
+    /\b(?:ID|IDENTIFICATION|IDENTITY)\s*(?:CARD|DOCUMENT|NUMBER|NO)\b/gi, // ID labels
+    /\b(?:STATE|GOVERNMENT|NATIONAL)\s*(?:ID|IDENTIFICATION)\s*(?:CARD|DOCUMENT)\b/gi, // Government ID
+    /\b(?:EMPLOYEE|STUDENT|MEMBER)\s*(?:ID|IDENTIFICATION)\s*(?:CARD|NUMBER)\b/gi, // Employee/Student ID
+    /\b(?:ID|IDENTIFICATION)\s*(?:NUMBER|NO|NUM)\s*[:=]?\s*[A-Z0-9\-]{6,15}\b/gi, // ID numbers
+    /\b(?:ISSUED|ISSUE DATE|VALID FROM|EXPIRES|EXPIRY)\s*[:=]?\s*\d{1,2}\/\d{2}\/\d{4}\b/gi, // Issue/Expiry dates
+    /\b(?:PHOTO|PHOTOGRAPH|PICTURE)\s*(?:ID|IDENTIFICATION)\b/gi, // Photo ID
+    /\b(?:OFFICIAL|GOVERNMENT|STATE)\s*(?:IDENTIFICATION|ID)\s*(?:CARD|DOCUMENT)\b/gi, // Official ID
   ],
   
   // Medical information patterns

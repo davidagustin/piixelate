@@ -60,6 +60,11 @@ export function pixelateRegions(
       strongPixelSize = Math.max(strongPixelSize, 28); // Large pixels for driver's licenses
     }
     
+    // Strong protection for ID cards
+    if (detection.type === 'id_card') {
+      strongPixelSize = Math.max(strongPixelSize, 26); // Large pixels for ID cards
+    }
+    
     // Apply pixelation
     applyPixelation(data, expandedWidth, expandedHeight, strongPixelSize);
     
@@ -70,7 +75,7 @@ export function pixelateRegions(
     applyBlurEffects(ctx, expandedX, expandedY, expandedWidth, expandedHeight, detection.type);
     
     // Apply additional blackout protection for highly sensitive data
-    if (detection.type === 'credit_card' || detection.type === 'drivers_license' || detection.type === 'ssn') {
+    if (detection.type === 'credit_card' || detection.type === 'drivers_license' || detection.type === 'id_card' || detection.type === 'ssn') {
       applyBlackoutProtection(ctx, expandedX, expandedY, expandedWidth, expandedHeight);
     }
   });
@@ -217,6 +222,11 @@ function applyBlurEffects(
   // Strong blur for driver's licenses
   if (detectionType === 'drivers_license') {
     blurStrength = 12; // Strong blur for driver's licenses
+  }
+  
+  // Strong blur for ID cards
+  if (detectionType === 'id_card') {
+    blurStrength = 11; // Strong blur for ID cards
   }
   
   // Apply multiple blur passes for maximum protection

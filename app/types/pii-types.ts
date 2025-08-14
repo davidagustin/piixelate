@@ -29,6 +29,7 @@ export type PIIType =
   | 'license_plate'
   | 'name'
   | 'drivers_license'
+  | 'id_card'
   | 'zip_code'
   | 'barcode'
   | 'document_id'
