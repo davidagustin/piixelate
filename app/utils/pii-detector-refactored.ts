@@ -6,7 +6,7 @@
  * - Code organization: Split into smaller, focused modules
  * - Type safety: Proper TypeScript typing throughout
  * - Error handling: Consistent error handling patterns
- * - Performance: Optimized patterns and memory management
+ * - Performance: Optimized algorithms and memory management
  * - Code duplication: Extracted common patterns
  * - Documentation: Comprehensive JSDoc comments
  * - Configuration: Proper environment variable handling
@@ -18,8 +18,10 @@ import { ocrProcessor } from './ocr-processor';
 import { patternDetector } from '../detectors/pattern-detector';
 import { visionDetector } from '../detectors/vision-detector';
 import { llmVerifier } from '../detectors/llm-verifier';
+import { enhancedLLMDetector } from '../detectors/enhanced-llm-detector';
 import { specializedDetector } from '../detectors/specialized-detectors';
-import { errorHandler, PIIErrorType } from './error-handler';
+import { multiLayerDetector } from '../detectors/multi-layer-detector';
+import { errorHandler } from './error-handler';
 import { detectionConfig } from '../config/detection-config';
 
 /**
@@ -55,11 +57,11 @@ export class PIIDetectionOrchestrator {
   }
 
   /**
-   * Main PII detection method with three-layer approach
-   * @param imageSrc - Image source for detection
+   * Main PII detection method with enhanced three-layer approach
+   * @param imageSource - Image source for detection
    * @returns Comprehensive detection result
    */
-  public async detectPII(imageSrc: string): Promise<DetectionResult> {
+  public async detectPII(imageSource: string): Promise<DetectionResult> {
     const startTime = Date.now();
     const errors: any[] = [];
     
@@ -70,15 +72,15 @@ export class PIIDetectionOrchestrator {
       }
 
       // Validate input
-      this.validateImageInput(imageSrc);
+      this.validateImageInput(imageSource);
 
       // LAYER 0: Computer Vision detection (identify regions of interest)
       console.log('Layer 0: Computer Vision detection...');
-      const visionDetections = await this.performVisionDetection(imageSrc);
+      const visionDetections = await this.performVisionDetection(imageSource);
       
       // Perform OCR
       console.log('Performing OCR...');
-      const ocrResult = await this.performOCR(imageSrc);
+      const ocrResult = await this.performOCR(imageSource);
       
       // LAYER 1: Pattern-based detection (fast and efficient)
       console.log('Layer 1: Pattern-based detection...');
@@ -98,10 +100,10 @@ export class PIIDetectionOrchestrator {
         return this.createDetectionResult([], errors, startTime, ocrResult);
       }
       
-      // LAYER 3: LLM verification and enhancement (final layer)
+      // LAYER 3: Enhanced LLM verification and detection (final layer)
       if (this.config.enableLLM) {
-        console.log(`Layer 3: LLM verification of ${combinedDetections.length} potential PII elements...`);
-        const finalDetections = await this.performLLMVerification(ocrResult.text, combinedDetections);
+        console.log(`Layer 3: Enhanced LLM detection and verification of ${combinedDetections.length} potential PII elements...`);
+        const finalDetections = await this.performEnhancedLLMDetection(ocrResult.text, combinedDetections);
         return this.createDetectionResult(finalDetections, errors, startTime, ocrResult);
       } else {
         const sortedDetections = this.sortDetectionsByConfidence(combinedDetections);
@@ -208,22 +210,69 @@ export class PIIDetectionOrchestrator {
   }
 
   /**
-   * Perform LLM verification
+   * Perform enhanced LLM detection and verification
    * @param fullText - Full text content
    * @param detections - Detections to verify
-   * @returns Verified detections
+   * @returns Enhanced detections
    */
-  private async performLLMVerification(
+  private async performEnhancedLLMDetection(
     fullText: string,
     detections: PIIDetection[]
   ): Promise<PIIDetection[]> {
     try {
+      // First, use enhanced LLM detector for new detections
+      console.log('Enhanced LLM detection...');
+      const enhancedDetections = await enhancedLLMDetector.detectPII(fullText, this.buildContext(detections));
+      
+      // Then, use LLM verifier to verify existing detections
+      console.log('LLM verification...');
       const verifiedDetections = await llmVerifier.verifyWithLLM(fullText, detections);
-      return this.sortDetectionsByConfidence(verifiedDetections);
+      
+      // Combine and deduplicate detections
+      const allDetections = [...verifiedDetections, ...enhancedDetections];
+      const uniqueDetections = this.deduplicateDetections(allDetections);
+      
+      return this.sortDetectionsByConfidence(uniqueDetections);
     } catch (error) {
-      errorHandler.handleLLMError('llm_verification', error as Error);
+      errorHandler.handleLLMError('enhanced_llm_detection', error as Error);
       return this.sortDetectionsByConfidence(detections); // Fallback to original detections
     }
+  }
+
+  /**
+   * Build context for LLM analysis
+   * @param detections - Existing detections
+   * @returns Context string
+   */
+  private buildContext(detections: PIIDetection[]): string {
+    const context = [
+      `Existing detections: ${detections.length}`,
+      `Detection types: ${[...new Set(detections.map(d => d.type))].join(', ')}`,
+      `Average confidence: ${detections.length > 0 ? 
+        (detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length).toFixed(2) : '0'}`
+    ];
+    
+    return context.join(' | ');
+  }
+
+  /**
+   * Deduplicate detections based on text and type
+   * @param detections - Array of detections
+   * @returns Deduplicated detections
+   */
+  private deduplicateDetections(detections: PIIDetection[]): PIIDetection[] {
+    const detectionMap = new Map<string, PIIDetection>();
+    
+    detections.forEach(detection => {
+      const key = `${detection.type}:${detection.text}`;
+      const existing = detectionMap.get(key);
+      
+      if (!existing || detection.confidence > existing.confidence) {
+        detectionMap.set(key, detection);
+      }
+    });
+    
+    return Array.from(detectionMap.values());
   }
 
   /**
@@ -261,7 +310,11 @@ export class PIIDetectionOrchestrator {
     
     detections.forEach(detection => {
       const source = detection.source || 'pattern';
-      detectionSources[source]++;
+      if (detectionSources[source] !== undefined) {
+        detectionSources[source]++;
+      } else {
+        detectionSources[source] = 1;
+      }
     });
 
     return {
@@ -302,21 +355,27 @@ export class PIIDetectionOrchestrator {
   }
 
   /**
-   * Get system status
-   * @returns System status information
+   * Get enhanced LLM detector statistics
+   * @returns Enhanced LLM statistics
    */
-  public getSystemStatus(): Record<string, any> {
+  public getEnhancedLLMStats(): {
+    providerStats: any;
+    cacheStats: any;
+    config: any;
+  } {
     return {
-      initialized: this.isInitialized,
-      configuration: detectionConfig.getConfigSummary(),
-      componentStatus: {
-        patternDetector: patternDetector.isAvailable(),
-        visionDetector: visionDetector.isAvailable(),
-        llmVerifier: llmVerifier.isAvailable(),
-        specializedDetector: specializedDetector.isAvailable(),
-      },
-      errorStats: errorHandler.getErrorStats(),
+      providerStats: enhancedLLMDetector.getProviderStats(),
+      cacheStats: enhancedLLMDetector.getCacheStats(),
+      config: enhancedLLMDetector.getConfig(),
     };
+  }
+
+  /**
+   * Clear all caches
+   */
+  public clearCaches(): void {
+    enhancedLLMDetector.clearCache();
+    llmVerifier.clearCache();
   }
 
   /**
@@ -325,20 +384,50 @@ export class PIIDetectionOrchestrator {
    */
   public updateConfig(newConfig: Partial<typeof this.config>): void {
     this.config = { ...this.config, ...newConfig };
-    
-    // Update all component configurations
-    patternDetector.updateConfig(newConfig);
-    visionDetector.updateConfig(newConfig);
-    llmVerifier.updateConfig(newConfig);
-    specializedDetector.updateConfig(newConfig);
   }
 
   /**
-   * Reset the orchestrator state
+   * Detect PII using multi-layer approach
+   * @param imageSrc - Image source for detection
+   * @returns Comprehensive detection result with multi-layer analysis
    */
-  public reset(): void {
-    this.isInitialized = false;
-    errorHandler.clearErrors();
+  public async detectPIIWithMultiLayer(imageSrc: string): Promise<DetectionResult> {
+    try {
+      // Ensure initialization
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // Use the multi-layer detector
+      return await multiLayerDetector.detectPII(imageSrc);
+    } catch (error) {
+      const piiError = errorHandler.handleProcessingError('multi_layer_detection', error as Error);
+      return {
+        detections: [],
+        errors: [piiError],
+        success: false,
+        processingTime: 0,
+        metadata: {
+          totalLines: 0,
+          totalCharacters: 0,
+          detectionSources: {} as Record<string, number>,
+        },
+      };
+    }
+  }
+
+  /**
+   * Get multi-layer detector statistics
+   * @returns Multi-layer detector statistics
+   */
+  public getMultiLayerStats(): {
+    config: any;
+    cacheStats: any;
+  } {
+    return {
+      config: multiLayerDetector.getConfig(),
+      cacheStats: multiLayerDetector.getCacheStats(),
+    };
   }
 }
 
@@ -348,20 +437,22 @@ export class PIIDetectionOrchestrator {
 export const piiDetectionOrchestrator = new PIIDetectionOrchestrator();
 
 /**
- * Main PII detection function for backward compatibility
- * @param imageSrc - Image source for detection
- * @returns Array of PII detections
+ * Main detection function for backward compatibility
  */
-export async function detectPII(imageSrc: string): Promise<PIIDetection[]> {
-  const result = await piiDetectionOrchestrator.detectPII(imageSrc);
-  return result.detections;
+export async function detectPII(imageSrc: string): Promise<DetectionResult> {
+  return piiDetectionOrchestrator.detectPII(imageSrc);
 }
 
 /**
- * Enhanced PII detection with full result information
- * @param imageSrc - Image source for detection
- * @returns Complete detection result
+ * Enhanced detection function with metadata
  */
 export async function detectPIIWithMetadata(imageSrc: string): Promise<DetectionResult> {
-  return await piiDetectionOrchestrator.detectPII(imageSrc);
+  return piiDetectionOrchestrator.detectPII(imageSrc);
+}
+
+/**
+ * Multi-layer detection function
+ */
+export async function detectPIIWithMultiLayer(imageSrc: string): Promise<DetectionResult> {
+  return piiDetectionOrchestrator.detectPIIWithMultiLayer(imageSrc);
 }

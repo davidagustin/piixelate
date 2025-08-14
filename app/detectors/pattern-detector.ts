@@ -31,26 +31,26 @@ export class PatternDetector {
         console.log('Pattern detector - Lines:', ocrResult.lines.length);
       }
       
-      const detections: PIIDetection[] = [];
-      let totalDetections = 0;
-      const maxDetections = this.config.maxDetections || 100;
+      const allDetections: PIIDetection[] = [];
+      let detectionCount = 0;
+      const maxDetectionLimit = this.config.maxDetections || 100;
       
       // Process each line for PII detection
       for (let lineIndex = 0; lineIndex < ocrResult.lines.length; lineIndex++) {
-        const line = ocrResult.lines[lineIndex];
+        const currentLine = ocrResult.lines[lineIndex];
         
         // Stop if we've reached the maximum number of detections
-        if (totalDetections >= maxDetections) {
+        if (detectionCount >= maxDetectionLimit) {
           break;
         }
         
-        const lineDetections = this.processLine(line, lineIndex, ocrResult.text);
-        detections.push(...lineDetections);
-        totalDetections += lineDetections.length;
+        const lineDetections = this.processLine(currentLine, lineIndex, ocrResult.text);
+        allDetections.push(...lineDetections);
+        detectionCount += lineDetections.length;
       }
 
       // Remove duplicates and filter by confidence threshold
-      const uniqueDetections = this.removeDuplicates(detections);
+      const uniqueDetections = this.removeDuplicates(allDetections);
       const filteredDetections = this.filterByConfidence(uniqueDetections);
 
       if (this.config.debugMode) {

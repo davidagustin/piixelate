@@ -22,17 +22,32 @@ import { detectPII } from './utils/pii-detector-refactored';
 import type { PIIDetection } from './types/pii-types';
 
 export default function PIIxelate() {
-  const [mode, setMode] = useState<'camera' | 'upload'>('camera');
-  const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [processedImage, setProcessedImage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [detections, setDetections] = useState<PIIDetection[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [useLLM, setUseLLM] = useState(true);
-  const [detectionProgress, setDetectionProgress] = useState<string>('');
-  const [imageInfo, setImageInfo] = useState<{width: number; height: number; size?: string} | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Input method state
+  const [inputMethod, setInputMethod] = useState<'camera' | 'upload'>('camera');
+  
+  // Image state
+  const [originalImageSrc, setOriginalImageSrc] = useState<string | null>(null);
+  const [processedImageSrc, setProcessedImageSrc] = useState<string | null>(null);
+  const [imageMetadata, setImageMetadata] = useState<{width: number; height: number; size?: string} | null>(null);
+  
+  // Processing state
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState<string>('');
+  const [processingDuration, setProcessingDuration] = useState<number>(0);
+  
+  // Detection results
+  const [detectedPII, setDetectedPII] = useState<PIIDetection[]>([]);
+  const [detectionStatistics, setDetectionStatistics] = useState<{total: number; byType: Record<string, number>} | null>(null);
+  
+  // UI state
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isMobileMenuVisible, setIsMobileMenuVisible] = useState(false);
+  const [isAdvancedOptionsVisible, setIsAdvancedOptionsVisible] = useState(false);
+  
+  // Configuration
+  const [isLLMEnabled, setIsLLMEnabled] = useState(true);
+  const [detectionConfidenceThreshold, setDetectionConfidenceThreshold] = useState(0.6);
 
   
   const webcamRef = useRef<Webcam>(null);
@@ -45,11 +60,11 @@ export default function PIIxelate() {
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
       if (imageSrc) {
-        setOriginalImage(imageSrc);
-        setProcessedImage(null);
-        setDetections([]);
-        setError(null);
-        setSuccess(null);
+        setOriginalImageSrc(imageSrc);
+        setProcessedImageSrc(null);
+        setDetectedPII([]);
+        setErrorMessage(null);
+        setSuccessMessage(null);
       }
     }
   }, []);
@@ -59,29 +74,29 @@ export default function PIIxelate() {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setError('Please select a valid image file');
+        setErrorMessage('Please select a valid image file');
         return;
       }
       
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        setError('Image file size must be less than 10MB');
+        setErrorMessage('Image file size must be less than 10MB');
         return;
       }
       
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        setOriginalImage(result);
-        setProcessedImage(null);
-        setDetections([]);
-        setError(null);
-        setSuccess(null);
+        setOriginalImageSrc(result);
+        setProcessedImageSrc(null);
+        setDetectedPII([]);
+        setErrorMessage(null);
+        setSuccessMessage(null);
         
         // Get image information
         const img = new Image();
         img.onload = () => {
-          setImageInfo({
+          setImageMetadata({
             width: img.width,
             height: img.height,
             size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
@@ -112,35 +127,35 @@ export default function PIIxelate() {
     const imageFile = files.find(file => file.type.startsWith('image/'));
     
     if (imageFile) {
-      if (imageFile.size > 10 * 1024 * 1024) {
-        setError('Image file size must be less than 10MB');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setOriginalImage(result);
-        setProcessedImage(null);
-        setDetections([]);
-        setError(null);
-        setSuccess(null);
-        
-        // Get image information
-        const img = new Image();
-        img.onload = () => {
-          setImageInfo({
-            width: img.width,
-            height: img.height,
-            size: `${(imageFile.size / 1024 / 1024).toFixed(2)} MB`
-          });
-        };
-        img.src = result;
-      };
-      reader.readAsDataURL(imageFile);
-    } else {
-      setError('Please drop a valid image file');
+          if (imageFile.size > 10 * 1024 * 1024) {
+      setErrorMessage('Image file size must be less than 10MB');
+      return;
     }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setOriginalImageSrc(result);
+      setProcessedImageSrc(null);
+      setDetectedPII([]);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+      
+      // Get image information
+      const img = new Image();
+      img.onload = () => {
+        setImageMetadata({
+          width: img.width,
+          height: img.height,
+          size: `${(imageFile.size / 1024 / 1024).toFixed(2)} MB`
+        });
+      };
+      img.src = result;
+    };
+    reader.readAsDataURL(imageFile);
+  } else {
+    setErrorMessage('Please drop a valid image file');
+  }
   };
 
 
@@ -151,10 +166,11 @@ export default function PIIxelate() {
     
     detections.forEach(detection => {
       const { boundingBox } = detection;
-      if (!boundingBox) return;
+      if (!boundingBox || typeof boundingBox.x !== 'number' || typeof boundingBox.y !== 'number' || 
+          typeof boundingBox.width !== 'number' || typeof boundingBox.height !== 'number') return;
       
       // Expand the region slightly for better coverage
-      const expandedBox = {
+      const expandedBox: { x: number; y: number; width: number; height: number } = {
         x: Math.max(0, boundingBox.x - 5),
         y: Math.max(0, boundingBox.y - 5),
         width: Math.min(canvas.width - boundingBox.x, boundingBox.width + 10),
@@ -230,55 +246,70 @@ export default function PIIxelate() {
   };
 
   const processImage = async () => {
-    if (!originalImage) return;
+    if (!originalImageSrc) return;
     
-    setIsProcessing(true);
-    setError(null);
-    setSuccess(null);
-    setDetectionProgress('');
+    setIsProcessingImage(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setProcessingProgress('');
     
     try {
       // Show progress for three-layer detection
-      if (useLLM) {
-        setDetectionProgress('Layer 0: Computer Vision...');
+      if (isLLMEnabled) {
+        setProcessingProgress('Layer 0: Computer Vision...');
         await new Promise(resolve => setTimeout(resolve, 800)); // Simulate CV processing
-        setDetectionProgress('Layer 1: Pattern matching...');
+        setProcessingProgress('Layer 1: Pattern matching...');
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate pattern processing
-        setDetectionProgress('Layer 2: LLM verification...');
+        setProcessingProgress('Layer 2: LLM verification...');
         await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate LLM processing
       } else {
-        setDetectionProgress('Pattern matching...');
+        setProcessingProgress('Pattern matching...');
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
       // Detect PII using the utility function
       console.log('Starting PII detection...');
-      const detectedPII = await detectPII(originalImage);
-      console.log('Detection result:', detectedPII);
-      setDetections(detectedPII);
+      const startTime = Date.now();
+      const detectionResult = await detectPII(originalImageSrc);
+      const endTime = Date.now();
+      const processingTimeMs = endTime - startTime;
       
-      if (detectedPII.length > 0) {
+      console.log('Detection result:', detectionResult);
+      setDetectedPII(detectionResult.detections);
+      setProcessingDuration(processingTimeMs);
+      
+      // Calculate detection statistics
+      const stats = {
+        total: detectionResult.detections.length,
+        byType: detectionResult.detections.reduce((acc, detection) => {
+          acc[detection.type] = (acc[detection.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      };
+      setDetectionStatistics(stats);
+      
+      if (detectionResult.detections.length > 0) {
         console.log('PII detected, pixelating image...');
         // Pixelate the image
-        const pixelatedImage = await pixelateImage(originalImage, detectedPII);
-        setProcessedImage(pixelatedImage);
-        setSuccess(`Found and pixelated ${detectedPII.length} PII elements using ${useLLM ? 'three-layer' : 'pattern'} detection`);
+        const pixelatedImage = await pixelateImage(originalImageSrc, detectionResult.detections);
+        setProcessedImageSrc(pixelatedImage);
+        setSuccessMessage(`Found and pixelated ${detectionResult.detections.length} PII elements using ${isLLMEnabled ? 'three-layer' : 'pattern'} detection`);
       } else {
         console.log('No PII detected');
-        setSuccess(`No PII detected in the image using ${useLLM ? 'three-layer' : 'pattern'} detection`);
-        setProcessedImage(originalImage);
+        setSuccessMessage(`No PII detected in the image using ${isLLMEnabled ? 'three-layer' : 'pattern'} detection`);
+        setProcessedImageSrc(originalImageSrc);
       }
     } catch (err) {
       console.error('Processing error:', err);
-      setError(`Failed to process image: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setErrorMessage(`Failed to process image: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
-      setIsProcessing(false);
-      setDetectionProgress('');
+      setIsProcessingImage(false);
+      setProcessingProgress('');
     }
   };
 
   const downloadImage = (format: 'jpg' | 'png' = 'jpg') => {
-    if (processedImage) {
+    if (processedImageSrc) {
       const canvas = canvasRef.current;
       if (!canvas) return;
       
@@ -313,61 +344,23 @@ export default function PIIxelate() {
         link.click();
       };
       
-      img.src = processedImage;
+      img.src = processedImageSrc;
     }
   };
 
   const resetApp = () => {
-    setOriginalImage(null);
-    setProcessedImage(null);
-    setDetections([]);
-    setError(null);
-    setSuccess(null);
-    setImageInfo(null);
+    setOriginalImageSrc(null);
+    setProcessedImageSrc(null);
+    setDetectedPII([]);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setImageMetadata(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Test function to verify pattern detection
-  const testPatternDetection = async () => {
-    console.log('Testing pattern detection system...');
-    
-    try {
-      // Test with sample text that should trigger detections
-      const testText = "HAWAII DRIVER LICENSE 01-47-87441 McLovin 06/03/1981 06/03/2008 892 MOMONA ST HONOLULU HI 96820 ORGAN DONOR";
-      
-      // Create a mock OCR result
-      const mockOCRResult = {
-        text: testText,
-        lines: [
-          { text: "HAWAII DRIVER LICENSE", bbox: { x0: 0, y0: 0, x1: 200, y1: 30 } },
-          { text: "01-47-87441", bbox: { x0: 0, y0: 40, x1: 150, y1: 60 } },
-          { text: "McLovin", bbox: { x0: 0, y0: 70, x1: 100, y1: 90 } },
-          { text: "06/03/1981", bbox: { x0: 0, y0: 100, x1: 120, y1: 120 } },
-          { text: "892 MOMONA ST HONOLULU HI 96820", bbox: { x0: 0, y0: 130, x1: 300, y1: 150 } }
-        ]
-      };
-      
-      // Import and test the pattern detector
-      const { patternDetector } = await import('./detectors/pattern-detector');
-      const detections = await patternDetector.detectPII(mockOCRResult);
-      
-      console.log('Pattern detection test results:', detections);
-      
-      // Show results to user
-      if (detections.length > 0) {
-        setSuccess(`Test completed! Found ${detections.length} PII elements: ${detections.map(d => d.type).join(', ')}`);
-        setDetections(detections);
-      } else {
-        setError('Test completed but no PII was detected in the test data');
-      }
-      
-    } catch (error) {
-      console.error('Pattern detection test failed:', error);
-      setError(`Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -403,17 +396,17 @@ export default function PIIxelate() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Mode Selection */}
-        <div className="card p-4 sm:p-8 mb-6 sm:mb-8 bg-white/80 backdrop-blur-sm border-blue-200">
-          <h2 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 flex items-center space-x-2">
-            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
-            <span>Choose Input Method</span>
-          </h2>
+                  {/* Input Method Selection */}
+          <div className="card p-4 sm:p-8 mb-6 sm:mb-8 bg-white/80 backdrop-blur-sm border-blue-200">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 flex items-center space-x-2">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+              <span>Choose Input Method</span>
+            </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <button
-              onClick={() => setMode('camera')}
+              onClick={() => setInputMethod('camera')}
               className={`mobile-feedback p-4 sm:p-6 rounded-xl border-2 transition-all duration-300 group min-h-[120px] sm:min-h-[160px] cursor-pointer card-hover ${
-                mode === 'camera'
+                inputMethod === 'camera'
                   ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-700 shadow-lg'
                   : 'border-slate-200 hover:border-blue-300 hover:shadow-md bg-white'
               }`}
@@ -433,9 +426,9 @@ export default function PIIxelate() {
               </div>
             </button>
             <button
-              onClick={() => setMode('upload')}
+              onClick={() => setInputMethod('upload')}
               className={`mobile-feedback p-4 sm:p-6 rounded-xl border-2 transition-all duration-300 group min-h-[120px] sm:min-h-[160px] cursor-pointer card-hover ${
-                mode === 'upload'
+                inputMethod === 'upload'
                   ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-700 shadow-lg'
                   : 'border-slate-200 hover:border-blue-300 hover:shadow-md bg-white'
               }`}
@@ -461,7 +454,7 @@ export default function PIIxelate() {
             <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex items-center space-x-2 flex-wrap">
               <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
               <span>Detection Method: </span>
-              {useLLM ? (
+              {isLLMEnabled ? (
                 <span className="px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold ml-2 whitespace-nowrap">
                   Computer Vision + Pattern matching + LLM verification
                 </span>
@@ -476,20 +469,20 @@ export default function PIIxelate() {
                 <input
                   type="radio"
                   name="detection"
-                  checked={useLLM}
-                  onChange={() => setUseLLM(true)}
+                  checked={isLLMEnabled}
+                  onChange={() => setIsLLMEnabled(true)}
                   className="sr-only"
                 />
                 <div className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 min-h-[80px] sm:min-h-[100px] ${
-                  useLLM
+                  isLLMEnabled
                     ? 'border-green-500 bg-green-50 shadow-lg ring-4 ring-blue-300'
                     : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}>
                   <div className="flex items-start space-x-3 h-full">
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all duration-200 ${
-                      useLLM ? 'border-green-500 bg-green-500 scale-125 shadow-xl' : 'border-slate-300'
+                      isLLMEnabled ? 'border-green-500 bg-green-500 scale-125 shadow-xl' : 'border-slate-300'
                     }`}>
-                      {useLLM && <div className="w-4 h-4 bg-yellow-300 rounded-full shadow-lg border-2 border-white"></div>}
+                      {isLLMEnabled && <div className="w-4 h-4 bg-yellow-300 rounded-full shadow-lg border-2 border-white"></div>}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-slate-800 text-sm sm:text-base">
@@ -511,20 +504,20 @@ export default function PIIxelate() {
                 <input
                   type="radio"
                   name="detection"
-                  checked={!useLLM}
-                  onChange={() => setUseLLM(false)}
+                  checked={!isLLMEnabled}
+                  onChange={() => setIsLLMEnabled(false)}
                   className="sr-only"
                 />
                 <div className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 min-h-[80px] sm:min-h-[100px] ${
-                  !useLLM
+                  !isLLMEnabled
                     ? 'border-green-500 bg-green-500/10 dark:bg-green-500/20 shadow-lg ring-4 ring-blue-300 dark:ring-blue-400'
                     : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
                 }`}>
                   <div className="flex items-start space-x-3 h-full">
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all duration-200 ${
-                      !useLLM ? 'border-green-500 bg-green-500 scale-125 shadow-xl' : 'border-slate-300 dark:border-slate-600'
+                      !isLLMEnabled ? 'border-green-500 bg-green-500 scale-125 shadow-xl' : 'border-slate-300 dark:border-slate-600'
                     }`}>
-                      {!useLLM && <div className="w-4 h-4 bg-yellow-300 rounded-full shadow-lg border-2 border-white"></div>}
+                      {!isLLMEnabled && <div className="w-4 h-4 bg-yellow-300 rounded-full shadow-lg border-2 border-white"></div>}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-primary text-sm sm:text-base">
@@ -548,7 +541,7 @@ export default function PIIxelate() {
 
         {/* Input Section */}
         <div className="card p-4 sm:p-8 mb-6 sm:mb-8">
-          {mode === 'camera' ? (
+          {inputMethod === 'camera' ? (
             <div className="space-y-4 sm:space-y-6">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                 <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
@@ -618,7 +611,7 @@ export default function PIIxelate() {
         </div>
 
         {/* Image Display */}
-        {originalImage && (
+        {originalImageSrc && (
           <div className="security-card rounded-2xl p-4 sm:p-8 mb-6 sm:mb-8">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 flex items-center space-x-2">
               <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
@@ -626,22 +619,22 @@ export default function PIIxelate() {
             </h2>
             
             {/* Image Information */}
-            {imageInfo && (
+            {imageMetadata && (
               <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800 dark:to-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div className="text-center">
                     <p className="font-semibold text-slate-900 dark:text-white">Resolution</p>
-                    <p className="text-secondary">{imageInfo.width} × {imageInfo.height}</p>
+                    <p className="text-secondary">{imageMetadata.width} × {imageMetadata.height}</p>
                   </div>
-                  {imageInfo.size && (
+                  {imageMetadata.size && (
                     <div className="text-center">
                       <p className="font-semibold text-slate-900 dark:text-white">File Size</p>
-                      <p className="text-secondary">{imageInfo.size}</p>
+                      <p className="text-secondary">{imageMetadata.size}</p>
                     </div>
                   )}
                   <div className="text-center">
                     <p className="font-semibold text-slate-900 dark:text-white">Aspect Ratio</p>
-                    <p className="text-secondary">{(imageInfo.width / imageInfo.height).toFixed(2)}:1</p>
+                    <p className="text-secondary">{(imageMetadata.width / imageMetadata.height).toFixed(2)}:1</p>
                   </div>
                   <div className="text-center">
                     <p className="font-semibold text-slate-900 dark:text-white">Status</p>
@@ -653,7 +646,7 @@ export default function PIIxelate() {
             
             <div className="flex justify-center mb-4 sm:mb-6">
               <img
-                src={originalImage}
+                src={originalImageSrc}
                 alt="Original"
                 className="max-w-full h-auto rounded-xl border border-slate-200 dark:border-slate-600 shadow-lg"
               />
@@ -661,13 +654,13 @@ export default function PIIxelate() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button
                 onClick={processImage}
-                disabled={isProcessing}
-                className={`flex-1 security-button-primary mobile-feedback px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg flex items-center justify-center space-x-2 sm:space-x-3 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] touch-manipulation cursor-pointer ${isProcessing ? 'loading-button' : ''}`}
+                disabled={isProcessingImage}
+                className={`flex-1 security-button-primary mobile-feedback px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg flex items-center justify-center space-x-2 sm:space-x-3 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] touch-manipulation cursor-pointer ${isProcessingImage ? 'loading-button' : ''}`}
               >
-                {isProcessing ? (
+                {isProcessingImage ? (
                   <>
                     <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
-                    <span className="processing-dots text-sm sm:text-base">{detectionProgress || 'Processing...'}</span>
+                    <span className="processing-dots text-sm sm:text-base">{processingProgress || 'Processing...'}</span>
                   </>
                 ) : (
                   <>
@@ -682,18 +675,12 @@ export default function PIIxelate() {
               >
                 Reset
               </button>
-              <button
-                onClick={testPatternDetection}
-                className="security-button-secondary mobile-feedback px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg min-h-[48px] touch-manipulation cursor-pointer"
-              >
-                Test Detection
-              </button>
             </div>
           </div>
         )}
 
         {/* Results */}
-        {processedImage && (
+        {processedImageSrc && (
           <div className="security-card rounded-2xl p-4 sm:p-8 mb-6 sm:mb-8">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 flex items-center space-x-2">
               <EyeOff className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
@@ -701,12 +688,12 @@ export default function PIIxelate() {
             </h2>
             
             {/* Processed Image Information */}
-            {imageInfo && (
+            {imageMetadata && (
               <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800">
                 <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div className="text-center">
                     <p className="font-semibold text-slate-900 dark:text-white">Resolution</p>
-                    <p className="text-secondary">{imageInfo.width} × {imageInfo.height}</p>
+                    <p className="text-secondary">{imageMetadata.width} × {imageMetadata.height}</p>
                   </div>
                   <div className="text-center">
                     <p className="font-semibold text-slate-900 dark:text-white">Quality</p>
@@ -734,7 +721,7 @@ export default function PIIxelate() {
             
             <div className="flex justify-center mb-4 sm:mb-6">
               <img
-                src={processedImage}
+                src={processedImageSrc}
                 alt="Processed"
                 className="max-w-full h-auto rounded-xl border border-slate-200 dark:border-slate-600 shadow-lg"
               />
@@ -764,14 +751,14 @@ export default function PIIxelate() {
         )}
 
         {/* Detection Results */}
-        {detections.length > 0 && (
+        {detectedPII.length > 0 && (
           <div className="security-card rounded-2xl p-4 sm:p-8 mb-6 sm:mb-8">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 flex items-center space-x-2">
               <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
               <span>Detected PII Elements</span>
             </h2>
             <div className="space-y-3 sm:space-y-4">
-              {detections.map((detection, index) => (
+              {detectedPII.map((detection, index) => (
                 <div
                   key={index}
                   className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-xl space-y-2 sm:space-y-0"
@@ -801,24 +788,24 @@ export default function PIIxelate() {
         )}
 
         {/* Status Messages */}
-        {error && (
+        {errorMessage && (
           <div className="security-card rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
             <div className="flex items-start space-x-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <p className="text-red-700 dark:text-red-300 font-medium text-sm sm:text-base">{error}</p>
+              <p className="text-red-700 dark:text-red-300 font-medium text-sm sm:text-base">{errorMessage}</p>
             </div>
           </div>
         )}
 
-        {success && (
+        {successMessage && (
           <div className="security-card rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-green-500 bg-green-50 border border-green-200">
             <div className="flex items-start space-x-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
                 <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <p className="text-green-800 font-semibold text-sm sm:text-base">{success}</p>
+              <p className="text-green-800 font-semibold text-sm sm:text-base">{successMessage}</p>
             </div>
           </div>
         )}

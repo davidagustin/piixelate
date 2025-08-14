@@ -3,9 +3,9 @@
  * Handles LLM-based verification and enhancement of PII detections with enterprise-grade capabilities
  */
 
-import { PIIDetection, LLMVerificationRequest, LLMVerificationResponse, DetectionSource } from '../types/pii-types';
+import { PIIDetection, LLMVerificationRequest, DetectionSource } from '../types/pii-types';
 import { callLLM, LLMResponse, LLMDetection } from '../config/llm-config';
-import { errorHandler, PIIErrorType } from '../utils/error-handler';
+import { errorHandler } from '../utils/error-handler';
 import { detectionConfig } from '../config/detection-config';
 
 /**
@@ -44,7 +44,7 @@ export class LLMVerifier {
       const request: LLMVerificationRequest = {
         fullText,
         patternDetections,
-        context,
+        ...(context && { context }),
       };
 
       const response = await this.callLLMForVerification(request);
@@ -112,7 +112,7 @@ Return a JSON array of verified detections with this exact structure:
     "text": "exact_text_found",
     "confidence": 0.95,
     "line": 0,
-    "boundingBox": {"x": 100, "y": 50, "width": 200, "height": 30},
+    "boundingBox": {"x": 0, "y": 0, "width": 200, "height": 30},
     "verified": true,
     "reasoning": "explanation of verification decision"
   }

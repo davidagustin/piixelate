@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     esmExternals: 'loose',
+    optimizePackageImports: ['lucide-react'],
   },
   webpack: (config, { isServer }) => {
     // Handle large dependencies like Tesseract.js
@@ -29,12 +30,22 @@ const nextConfig: NextConfig = {
             name: 'vendors',
             chunks: 'all',
           },
+          tesseract: {
+            test: /[\\/]node_modules[\\/]tesseract\.js[\\/]/,
+            name: 'tesseract',
+            chunks: 'all',
+            priority: 10,
+          },
         },
       },
     };
     
     return config;
   },
+  // Performance optimizations
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: false,
 };
 
 export default nextConfig;

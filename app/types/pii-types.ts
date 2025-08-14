@@ -51,7 +51,8 @@ export type PIIType =
   | 'prescription_data'
   | 'health_insurance'
   | 'crypto_wallet'
-  | 'social_media_handle';
+  | 'social_media_handle'
+  | 'date_of_birth';
 
 /**
  * Bounding box coordinates
@@ -87,6 +88,8 @@ export interface OCRLine {
 export interface OCRResult {
   text: string;
   lines: OCRLine[];
+  confidence?: number;
+  processingTime?: number;
 }
 
 /**

@@ -55,7 +55,7 @@ export class SpecializedDetector {
     const creditCardIndicators = [
       'visa', 'mastercard', 'amex', 'discover', 'jcb', 'diners',
       'valid thru', 'expires', 'expiry', 'card number', 'card no',
-      'credit card', 'debit card'
+      'credit card', 'debit card', 'capital bank', 'bank'
     ];
     
     // Driver's license indicators
@@ -85,27 +85,27 @@ export class SpecializedDetector {
     ];
     
     // Check for credit card (highest priority for privacy)
-    if (creditCardIndicators.some(indicator => text.includes(indicator))) {
+    if (creditCardIndicators.some(indicator => text.toLowerCase().includes(indicator.toLowerCase()))) {
       return 'credit_card';
     }
     
     // Check for driver's license
-    if (licenseIndicators.some(indicator => text.includes(indicator))) {
+    if (licenseIndicators.some(indicator => text.toLowerCase().includes(indicator.toLowerCase()))) {
       return 'drivers_license';
     }
     
     // Check for passport
-    if (passportIndicators.some(indicator => text.includes(indicator))) {
+    if (passportIndicators.some(indicator => text.toLowerCase().includes(indicator.toLowerCase()))) {
       return 'passport_number';
     }
     
     // Check for government ID
-    if (governmentIdIndicators.some(indicator => text.includes(indicator))) {
+    if (governmentIdIndicators.some(indicator => text.toLowerCase().includes(indicator.toLowerCase()))) {
       return 'id_card';
     }
     
     // Check for employee/student ID
-    if (employeeIdIndicators.some(indicator => text.includes(indicator))) {
+    if (employeeIdIndicators.some(indicator => text.toLowerCase().includes(indicator.toLowerCase()))) {
       return 'id_card';
     }
     
@@ -458,6 +458,249 @@ export class SpecializedDetector {
   }
 
   /**
+   * Detect specialized PII types with enhanced accuracy
+   * @param ocrResult - OCR processing result
+   * @returns Array of specialized PII detections
+   */
+  private detectSpecializedPII(ocrResult: OCRResult): PIIDetection[] {
+    const detections: PIIDetection[] = [];
+    
+    try {
+      ocrResult.lines.forEach((line, lineIndex) => {
+        const lineText = line.text.toLowerCase();
+        
+        // Enhanced date of birth detection
+        if (this.isDateOfBirth(lineText)) {
+          const detection = this.createSpecializedDetection(
+            line, lineIndex, 'date_of_birth', 0.9, ocrResult.text
+          );
+          if (detection) detections.push(detection);
+        }
+        
+        // Enhanced address detection with context
+        if (this.isAddress(lineText)) {
+          const detection = this.createSpecializedDetection(
+            line, lineIndex, 'address', 0.85, ocrResult.text
+          );
+          if (detection) detections.push(detection);
+        }
+        
+        // Enhanced name detection with context
+        if (this.isName(lineText)) {
+          const detection = this.createSpecializedDetection(
+            line, lineIndex, 'name', 0.8, ocrResult.text
+          );
+          if (detection) detections.push(detection);
+        }
+      });
+      
+      return detections;
+    } catch (error) {
+      errorHandler.handleProcessingError('specialized_pii_detection', error as Error);
+      return [];
+    }
+  }
+  
+  /**
+   * Detect contextual PII based on surrounding text
+   * @param ocrResult - OCR processing result
+   * @returns Array of contextual PII detections
+   */
+  private detectContextualPII(ocrResult: OCRResult): PIIDetection[] {
+    const detections: PIIDetection[] = [];
+    
+    try {
+      const fullText = ocrResult.text.toLowerCase();
+      
+      // Check for medical context
+      if (this.hasMedicalContext(fullText)) {
+        const medicalDetections = this.detectMedicalPII(ocrResult);
+        detections.push(...medicalDetections);
+      }
+      
+      // Check for financial context
+      if (this.hasFinancialContext(fullText)) {
+        const financialDetections = this.detectFinancialPII(ocrResult);
+        detections.push(...financialDetections);
+      }
+      
+      // Check for government context
+      if (this.hasGovernmentContext(fullText)) {
+        const governmentDetections = this.detectGovernmentPII(ocrResult);
+        detections.push(...governmentDetections);
+      }
+      
+      return detections;
+    } catch (error) {
+      errorHandler.handleProcessingError('contextual_pii_detection', error as Error);
+      return [];
+    }
+  }
+  
+  /**
+   * Check if text contains date of birth indicators
+   */
+  private isDateOfBirth(text: string): boolean {
+    const dobPatterns = [
+      /\b(?:dob|date of birth|birth date|born)\s*[:=]?\s*\d{1,2}\/\d{1,2}\/\d{2,4}\b/i,
+      /\b(?:dob|date of birth|birth date|born)\s*[:=]?\s*\d{1,2}-\d{1,2}-\d{2,4}\b/i,
+      /\b(?:dob|date of birth|birth date|born)\s*[:=]?\s*\d{4}-\d{2}-\d{2}\b/i,
+    ];
+    
+    return dobPatterns.some(pattern => pattern.test(text));
+  }
+  
+  /**
+   * Check if text contains address indicators
+   */
+  private isAddress(text: string): boolean {
+    const addressPatterns = [
+      /\b\d+\s+[a-z\s]+(?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|court|ct|place|pl|way|terrace|ter)\b/i,
+      /\b\d+\s+[a-z\s]+(?:apartment|apt|suite|ste|unit|floor|fl)\s*\d*\b/i,
+    ];
+    
+    return addressPatterns.some(pattern => pattern.test(text));
+  }
+  
+  /**
+   * Check if text contains name indicators
+   */
+  private isName(text: string): boolean {
+    const namePatterns = [
+      /\b(?:name|full name|legal name)\s*[:=]?\s*[A-Z][a-z]+\s+[A-Z][a-z]+\b/,
+      /\b[A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]+\b/, // First Middle Last
+    ];
+    
+    return namePatterns.some(pattern => pattern.test(text));
+  }
+  
+  /**
+   * Check if text has medical context
+   */
+  private hasMedicalContext(text: string): boolean {
+    const medicalKeywords = [
+      'patient', 'medical', 'health', 'clinic', 'hospital', 'doctor', 'physician',
+      'diagnosis', 'treatment', 'medication', 'prescription', 'allergy', 'symptom'
+    ];
+    
+    return medicalKeywords.some(keyword => text.includes(keyword));
+  }
+  
+  /**
+   * Check if text has financial context
+   */
+  private hasFinancialContext(text: string): boolean {
+    const financialKeywords = [
+      'account', 'balance', 'transaction', 'deposit', 'withdrawal', 'credit',
+      'debit', 'bank', 'financial', 'investment', 'stock', 'bond'
+    ];
+    
+    return financialKeywords.some(keyword => text.includes(keyword));
+  }
+  
+  /**
+   * Check if text has government context
+   */
+  private hasGovernmentContext(text: string): boolean {
+    const governmentKeywords = [
+      'government', 'state', 'federal', 'official', 'department', 'agency',
+      'license', 'permit', 'certificate', 'registration', 'tax'
+    ];
+    
+    return governmentKeywords.some(keyword => text.includes(keyword));
+  }
+  
+  /**
+   * Detect medical PII
+   */
+  private detectMedicalPII(ocrResult: OCRResult): PIIDetection[] {
+    const detections: PIIDetection[] = [];
+    
+    ocrResult.lines.forEach((line, lineIndex) => {
+      const lineText = line.text.toLowerCase();
+      
+      if (lineText.includes('patient') || lineText.includes('medical')) {
+        const detection = this.createSpecializedDetection(
+          line, lineIndex, 'medical_info', 0.85, ocrResult.text
+        );
+        if (detection) detections.push(detection);
+      }
+    });
+    
+    return detections;
+  }
+  
+  /**
+   * Detect financial PII
+   */
+  private detectFinancialPII(ocrResult: OCRResult): PIIDetection[] {
+    const detections: PIIDetection[] = [];
+    
+    ocrResult.lines.forEach((line, lineIndex) => {
+      const lineText = line.text.toLowerCase();
+      
+      if (lineText.includes('account') || lineText.includes('balance')) {
+        const detection = this.createSpecializedDetection(
+          line, lineIndex, 'financial_data', 0.85, ocrResult.text
+        );
+        if (detection) detections.push(detection);
+      }
+    });
+    
+    return detections;
+  }
+  
+  /**
+   * Detect government PII
+   */
+  private detectGovernmentPII(ocrResult: OCRResult): PIIDetection[] {
+    const detections: PIIDetection[] = [];
+    
+    ocrResult.lines.forEach((line, lineIndex) => {
+      const lineText = line.text.toLowerCase();
+      
+      if (lineText.includes('government') || lineText.includes('official')) {
+        const detection = this.createSpecializedDetection(
+          line, lineIndex, 'id_card', 0.9, ocrResult.text
+        );
+        if (detection) detections.push(detection);
+      }
+    });
+    
+    return detections;
+  }
+  
+  /**
+   * Create specialized detection with enhanced context
+   */
+  private createSpecializedDetection(
+    line: OCRResult['lines'][0],
+    lineIndex: number,
+    type: string,
+    confidence: number,
+    fullText: string
+  ): PIIDetection | null {
+    try {
+      return {
+        type: type as any,
+        confidence,
+        boundingBox: {
+          x: line.bbox.x0,
+          y: line.bbox.y0,
+          width: line.bbox.x1 - line.bbox.x0,
+          height: line.bbox.y1 - line.bbox.y0,
+        },
+        text: line.text,
+        line: lineIndex,
+        source: 'specialized' as DetectionSource,
+      };
+    } catch (error) {
+      errorHandler.handleProcessingError('specialized_detection_creation', error as Error);
+      return null;
+    }
+  }
+
+  /**
    * Run all specialized detections
    * @param ocrResult - OCR processing result
    * @returns Array of all specialized detections
@@ -480,6 +723,14 @@ export class SpecializedDetector {
     // Barcodes
     const barcodeDetections = this.detectBarcodes(ocrResult);
     allDetections.push(...barcodeDetections);
+    
+    // Enhanced specialized PII detection
+    const specializedDetections = this.detectSpecializedPII(ocrResult);
+    allDetections.push(...specializedDetections);
+    
+    // Context-aware detection
+    const contextDetections = this.detectContextualPII(ocrResult);
+    allDetections.push(...contextDetections);
     
     return allDetections;
   }

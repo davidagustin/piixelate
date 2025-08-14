@@ -36,16 +36,16 @@ export class VisionDetector {
 
   /**
    * Detect PII using computer vision
-   * @param imageSrc - Image source
+   * @param imageSource - Image source
    * @returns Array of vision detections
    */
-  public async detectPII(imageSrc: string): Promise<VisionDetection[]> {
+  public async detectPII(imageSource: string): Promise<VisionDetection[]> {
     if (!this.config.enableComputerVision || !this.isInitialized) {
       return [];
     }
 
     try {
-      const imageData = await getImageDataFromSrc(imageSrc);
+      const imageData = await getImageDataFromSrc(imageSource);
       const visionDetections = await computerVisionProcessor.detectPII(imageData);
       
       return visionDetections;

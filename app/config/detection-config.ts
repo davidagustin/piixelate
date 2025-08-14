@@ -4,7 +4,7 @@
  */
 
 import { DetectionConfig } from '../types/pii-types';
-import { errorHandler, PIIErrorType } from '../utils/error-handler';
+import { errorHandler } from '../utils/error-handler';
 
 /**
  * Environment variable configuration interface
@@ -31,6 +31,7 @@ interface EnvironmentVariables {
   LLM_ENDPOINT: string;
   OPENAI_API_KEY: string;
   ANTHROPIC_API_KEY: string;
+  GOOGLE_AI_API_KEY: string;
 
   // Debug settings
   DEBUG_MODE: string;
@@ -142,6 +143,7 @@ function loadEnvironmentVariables(): EnvironmentVariables {
     LLM_ENDPOINT: process.env.NEXT_PUBLIC_LLM_ENDPOINT || '',
     OPENAI_API_KEY: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
     ANTHROPIC_API_KEY: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '',
+    GOOGLE_AI_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_AI_API_KEY || '',
 
     // Debug settings
     DEBUG_MODE: process.env.NODE_ENV === 'development' ? 'true' : 'false',
@@ -190,7 +192,7 @@ function validateConfigurationConsistency(config: DetectionConfig): void {
     const llmProvider = ConfigValidator.validateString(
       env.LLM_PROVIDER,
       'mock',
-      ['openai', 'anthropic', 'local', 'mock']
+      ['openai', 'anthropic', 'google', 'local', 'mock']
     );
 
     if (llmProvider === 'openai' && !env.OPENAI_API_KEY) {
@@ -205,6 +207,14 @@ function validateConfigurationConsistency(config: DetectionConfig): void {
       errorHandler.handleConfigurationError(
         'anthropic_api_key',
         'Anthropic API key required when LLM is enabled with Anthropic provider'
+      );
+      config.enableLLM = false;
+    }
+
+    if (llmProvider === 'google' && !env.GOOGLE_AI_API_KEY) {
+      errorHandler.handleConfigurationError(
+        'google_ai_api_key',
+        'Google AI API key required when LLM is enabled with Google provider'
       );
       config.enableLLM = false;
     }
@@ -228,6 +238,7 @@ export interface ExtendedDetectionConfig extends DetectionConfig {
   llmEndpoint?: string;
   openaiApiKey?: string;
   anthropicApiKey?: string;
+  googleAiApiKey?: string;
 
   // Debug settings
   debugMode: boolean;
@@ -241,7 +252,7 @@ function createExtendedConfig(): ExtendedDetectionConfig {
   const env = loadEnvironmentVariables();
   const baseConfig = createDetectionConfig();
 
-  return {
+  const config: ExtendedDetectionConfig = {
     ...baseConfig,
 
     // Performance settings
@@ -258,12 +269,9 @@ function createExtendedConfig(): ExtendedDetectionConfig {
     llmProvider: ConfigValidator.validateString(
       env.LLM_PROVIDER,
       'mock',
-      ['openai', 'anthropic', 'local', 'mock']
+      ['openai', 'anthropic', 'google', 'local', 'mock']
     ),
     llmModel: ConfigValidator.validateString(env.LLM_MODEL, 'gpt-4o-mini'),
-    llmEndpoint: env.LLM_ENDPOINT || undefined,
-    openaiApiKey: env.OPENAI_API_KEY || undefined,
-    anthropicApiKey: env.ANTHROPIC_API_KEY || undefined,
 
     // Debug settings
     debugMode: ConfigValidator.validateBoolean(env.DEBUG_MODE, false),
@@ -273,6 +281,22 @@ function createExtendedConfig(): ExtendedDetectionConfig {
       ['error', 'warn', 'info', 'debug']
     ),
   };
+
+  // Add optional properties only if they have values
+  if (env.LLM_ENDPOINT) {
+    config.llmEndpoint = env.LLM_ENDPOINT;
+  }
+  if (env.OPENAI_API_KEY) {
+    config.openaiApiKey = env.OPENAI_API_KEY;
+  }
+  if (env.ANTHROPIC_API_KEY) {
+    config.anthropicApiKey = env.ANTHROPIC_API_KEY;
+  }
+  if (env.GOOGLE_AI_API_KEY) {
+    config.googleAiApiKey = env.GOOGLE_AI_API_KEY;
+  }
+
+  return config;
 }
 
 /**
@@ -309,7 +333,7 @@ export class DetectionConfigManager {
    * Get detection configuration
    */
   public getDetectionConfig(): DetectionConfig {
-    const { processingTimeout, maxFileSize, allowedImageTypes, llmProvider, llmModel, llmEndpoint, openaiApiKey, anthropicApiKey, debugMode, logLevel, ...detectionConfig } = this.config;
+    const { processingTimeout, maxFileSize, allowedImageTypes, llmProvider, llmModel, llmEndpoint, openaiApiKey, anthropicApiKey, googleAiApiKey, debugMode, logLevel, ...detectionConfig } = this.config;
     return detectionConfig;
   }
 
@@ -374,6 +398,7 @@ export class DetectionConfigManager {
         model: this.config.llmModel,
         hasOpenAIKey: !!this.config.openaiApiKey,
         hasAnthropicKey: !!this.config.anthropicApiKey,
+        hasGoogleAIKey: !!this.config.googleAiApiKey,
       },
       debug: {
         debugMode: this.config.debugMode,

@@ -62,7 +62,7 @@ const ENHANCED_PII_PROMPT = `You are an expert PII (Personally Identifiable Info
 
 DETECTION CATEGORIES:
 1. FINANCIAL DATA:
-   - Credit card numbers (all formats: 1234-5678-9012-3456, 1234 5678 9012 3456, 1234567890123456)
+   - Credit card numbers (all formats: XXXX-XXXX-XXXX-XXXX, XXXX XXXX XXXX XXXX, XXXXXXXXXXXXXXXX)
    - Bank account numbers (various formats)
    - Tax identification numbers (SSN: XXX-XX-XXXX, EIN, etc.)
    - Insurance policy numbers
@@ -78,7 +78,7 @@ DETECTION CATEGORIES:
    - Military ID numbers
 
 3. CONTACT INFORMATION:
-   - Phone numbers (all formats: +1-555-123-4567, (555) 123-4567, 555.123.4567)
+   - Phone numbers (all formats: +1-XXX-XXX-XXXX, (XXX) XXX-XXXX, XXX.XXX.XXXX)
    - Email addresses (standard and business formats)
    - Physical addresses (street, city, state, zip)
    - Social media handles (@username)
@@ -435,9 +435,12 @@ const callLocalLLM = async (text: string, context?: string): Promise<LLMResponse
  */
 const callMockLLM = async (text: string, context?: string): Promise<LLMResponse> => {
   // Simulate realistic API delay
-  await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 200));
+  await new Promise(resolve => setTimeout(resolve, 400));
   
   const detections: LLMDetection[] = [];
+  
+  // Use context if provided to enhance detection
+  const enhancedText = context ? `${text}\n\nContext: ${context}` : text;
   
   // Enhanced credit card detection with Luhn algorithm
   const creditCardPatterns = [
@@ -446,7 +449,7 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   ];
   
   creditCardPatterns.forEach(pattern => {
-    const matches = text.matchAll(pattern);
+    const matches = enhancedText.matchAll(pattern);
     for (const match of matches) {
       const cardNumber = match[0].replace(/[^0-9]/g, '');
       if (isValidLuhn(cardNumber)) {
@@ -454,8 +457,8 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
           type: 'credit_card',
           text: match[0],
           confidence: 0.98,
-          line: getLineNumber(text, match.index!),
-          boundingBox: { x: 100, y: 50, width: 200, height: 30 },
+          line: getLineNumber(enhancedText, match.index!),
+          boundingBox: { x: 0, y: 0, width: 200, height: 30 },
           verified: true,
           reasoning: 'Valid credit card number detected with Luhn algorithm verification'
         });
@@ -471,14 +474,14 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   ];
   
   phonePatterns.forEach(pattern => {
-    const matches = text.matchAll(pattern);
+    const matches = enhancedText.matchAll(pattern);
     for (const match of matches) {
       detections.push({
         type: 'phone',
         text: match[0],
         confidence: 0.95,
-        line: getLineNumber(text, match.index!),
-        boundingBox: { x: 150, y: 100, width: 120, height: 25 },
+        line: getLineNumber(enhancedText, match.index!),
+                  boundingBox: { x: 0, y: 0, width: 120, height: 25 },
         verified: true,
         reasoning: 'Phone number pattern matched with high confidence'
       });
@@ -487,14 +490,14 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   
   // Enhanced email detection
   const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
-  const emailMatches = text.matchAll(emailPattern);
+  const emailMatches = enhancedText.matchAll(emailPattern);
   for (const match of emailMatches) {
     detections.push({
       type: 'email',
       text: match[0],
       confidence: 0.97,
-      line: getLineNumber(text, match.index!),
-      boundingBox: { x: 200, y: 150, width: 180, height: 25 },
+      line: getLineNumber(enhancedText, match.index!),
+                boundingBox: { x: 0, y: 0, width: 180, height: 25 },
       verified: true,
       reasoning: 'Valid email address format detected'
     });
@@ -502,14 +505,14 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   
   // SSN detection
   const ssnPattern = /\b\d{3}-\d{2}-\d{4}\b/g;
-  const ssnMatches = text.matchAll(ssnPattern);
+  const ssnMatches = enhancedText.matchAll(ssnPattern);
   for (const match of ssnMatches) {
     detections.push({
       type: 'ssn',
       text: match[0],
       confidence: 0.99,
-      line: getLineNumber(text, match.index!),
-      boundingBox: { x: 120, y: 200, width: 110, height: 25 },
+      line: getLineNumber(enhancedText, match.index!),
+                boundingBox: { x: 0, y: 0, width: 110, height: 25 },
       verified: true,
       reasoning: 'Social Security Number format detected'
     });
@@ -517,14 +520,14 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   
   // Address detection
   const addressPattern = /\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr)\b/gi;
-  const addressMatches = text.matchAll(addressPattern);
+  const addressMatches = enhancedText.matchAll(addressPattern);
   for (const match of addressMatches) {
     detections.push({
       type: 'address',
       text: match[0],
       confidence: 0.85,
-      line: getLineNumber(text, match.index!),
-      boundingBox: { x: 80, y: 250, width: 250, height: 25 },
+      line: getLineNumber(enhancedText, match.index!),
+                boundingBox: { x: 0, y: 0, width: 250, height: 25 },
       verified: true,
       reasoning: 'Street address pattern detected'
     });
@@ -532,7 +535,7 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   
   // Name detection (basic)
   const namePattern = /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g;
-  const nameMatches = text.matchAll(namePattern);
+  const nameMatches = enhancedText.matchAll(namePattern);
   for (const match of nameMatches) {
     // Avoid common false positives
     const name = match[0];
@@ -543,8 +546,8 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
         type: 'name',
         text: match[0],
         confidence: 0.75,
-        line: getLineNumber(text, match.index!),
-        boundingBox: { x: 90, y: 300, width: 140, height: 25 },
+        line: getLineNumber(enhancedText, match.index!),
+                  boundingBox: { x: 0, y: 0, width: 140, height: 25 },
         verified: false,
         reasoning: 'Potential name pattern detected, needs context verification'
       });

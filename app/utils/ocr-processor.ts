@@ -30,40 +30,59 @@ export class TesseractOCRProcessor implements OCRProcessor {
     }
   }
 
-  async recognize(imageSrc: string): Promise<OCRResult> {
+  async recognize(imageSource: string): Promise<OCRResult> {
     if (!this.isInitialized || !this.tesseractModule) {
       console.warn('Tesseract.js not available, falling back to mock OCR');
       // Fallback to mock processor
       const mockProcessor = new MockOCRProcessor();
-      return mockProcessor.recognize(imageSrc);
+      return mockProcessor.recognize(imageSource);
     }
 
     try {
       const Tesseract = this.tesseractModule.default;
       
-      const result = await Tesseract.recognize(imageSrc, 'eng', {
-        logger: (m: any) => {
+      // Enhanced OCR configuration for better accuracy
+      const ocrResult = await Tesseract.recognize(imageSource, 'eng', {
+        logger: (progressMessage: any) => {
           if (process.env.NODE_ENV === 'development') {
-            console.log('OCR Progress:', m);
+            console.log('OCR Progress:', progressMessage);
           }
         },
+        // Enhanced OCR settings
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*()_+-=[]{}|;:,.<>?/\\ ',
+        tessedit_pageseg_mode: '6', // Uniform block of text
+        preserve_interword_spaces: '1',
+        tessjs_create_pdf: '0', // Disable PDF creation for performance
+        tessjs_create_hocr: '0', // Disable HOCR for performance
       });
       
-      const lines = result.data.lines.map((line: any) => ({
-        text: line.text.trim(),
-        bbox: line.bbox,
-      }));
+      // Enhanced line processing with confidence filtering
+      const processedLines = ocrResult.data.lines
+        .filter((line: any) => line.confidence > 30) // Filter low confidence lines
+        .map((line: any) => ({
+          text: line.text.trim(),
+          bbox: line.bbox,
+          confidence: line.confidence,
+        }));
+      
+      // Enhanced text processing
+      const normalizedText = ocrResult.data.text
+        .trim()
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/[^\w\s@#$%^&*()_+\-=\[\]{}|;:,.<>?/\\]/g, ''); // Remove invalid characters
       
       return {
-        text: result.data.text.trim(),
-        lines,
+        text: normalizedText,
+        lines: processedLines,
+        confidence: ocrResult.data.confidence,
+        processingTime: Date.now(),
       };
     } catch (error) {
       console.error('OCR Error:', error);
       console.warn('Falling back to mock OCR due to Tesseract error');
       // Fallback to mock processor
       const mockProcessor = new MockOCRProcessor();
-      return mockProcessor.recognize(imageSrc);
+      return mockProcessor.recognize(imageSource);
     }
   }
 }
@@ -76,49 +95,29 @@ export class MockOCRProcessor implements OCRProcessor {
     console.log('Mock OCR processor initialized');
   }
 
-  async recognize(imageSrc: string): Promise<OCRResult> {
+  async recognize(imageSource: string): Promise<OCRResult> {
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Return mock OCR result that matches the driver's license
+    // Return mock OCR result with generic placeholder data
     return {
-      text: 'HAWAII DRIVER LICENSE 01-47-87441 McLovin 06/03/1981 06/03/2008 HT 5-10 WT 159 HAIR BRO EYES BRO SEX M 06/18/1998 892 MOMONA ST HONOLULU HI 96820 ORGAN DONOR',
+      text: 'SAMPLE BANK XXXX XXXX XXXX XXXX VALID THRU XX/XX SAMPLE NAME',
       lines: [
         {
-          text: 'HAWAII DRIVER LICENSE',
-          bbox: { x0: 50, y0: 20, x1: 300, y1: 50 }
+          text: 'SAMPLE BANK',
+          bbox: { x0: 200, y0: 20, x1: 350, y1: 50 }
         },
         {
-          text: '01-47-87441',
-          bbox: { x0: 50, y0: 60, x1: 200, y1: 80 }
+          text: 'XXXX XXXX XXXX XXXX',
+          bbox: { x0: 50, y0: 80, x1: 350, y1: 110 }
         },
         {
-          text: 'McLovin',
-          bbox: { x0: 50, y0: 90, x1: 150, y1: 110 }
+          text: 'VALID THRU XX/XX',
+          bbox: { x0: 50, y0: 120, x1: 250, y1: 150 }
         },
         {
-          text: '06/03/1981',
-          bbox: { x0: 50, y0: 120, x1: 150, y1: 140 }
-        },
-        {
-          text: '06/03/2008',
-          bbox: { x0: 50, y0: 150, x1: 150, y1: 170 }
-        },
-        {
-          text: 'HT 5-10 WT 159 HAIR BRO EYES BRO SEX M',
-          bbox: { x0: 50, y0: 180, x1: 350, y1: 200 }
-        },
-        {
-          text: '06/18/1998',
-          bbox: { x0: 50, y0: 210, x1: 150, y1: 230 }
-        },
-        {
-          text: '892 MOMONA ST HONOLULU HI 96820',
-          bbox: { x0: 50, y0: 240, x1: 350, y1: 260 }
-        },
-        {
-          text: 'ORGAN DONOR',
-          bbox: { x0: 50, y0: 270, x1: 200, y1: 290 }
+          text: 'SAMPLE NAME',
+          bbox: { x0: 50, y0: 160, x1: 300, y1: 190 }
         }
       ]
     };

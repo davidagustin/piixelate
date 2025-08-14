@@ -19,9 +19,11 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/,
     /\b\d{4}[- ]?\d{6}[- ]?\d{5}\b/, // Amex format
     /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{3}\b/, // 15-digit cards
-    /\b(?:VISA|MASTERCARD|AMEX|DISCOVER|JCB|DINERS)\b/gi, // Card brands
-    /\b(?:VALID THRU|EXPIRES|EXP|EXPIRY)\s*[:=]?\s*\d{1,2}\/\d{2,4}\b/gi, // Expiry dates
-    /\b(?:CARD|CARD NUMBER|CARD NO|CARDNUM)\s*[:=]?\s*\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/gi, // Card labels
+    /\b(?:VISA|MASTERCARD|AMEX|DISCOVER|JCB|DINERS|CHASE|CITI|BANK OF AMERICA)\b/gi, // Card brands
+    /\b(?:VALID THRU|EXPIRES|EXP|EXPIRY|VALID UNTIL)\s*[:=]?\s*\d{1,2}\/\d{2,4}\b/gi, // Expiry dates
+    /\b(?:CARD|CARD NUMBER|CARD NO|CARDNUM|ACCOUNT)\s*[:=]?\s*\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/gi, // Card labels
+    /\b(?:CVV|CVC|SECURITY CODE|VERIFICATION CODE)\s*[:=]?\s*\d{3,4}\b/gi, // Security codes
+    /\b(?:PIN|PERSONAL IDENTIFICATION NUMBER)\s*[:=]?\s*\d{4,6}\b/gi, // PIN codes
   ],
   
   // Phone number patterns
@@ -29,12 +31,18 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/,
     /\b\(\d{3}\)\s*\d{3}[-.]?\d{4}\b/,
     /\b\+\d{1,3}[- ]?\d{3}[- ]?\d{3}[- ]?\d{4}\b/, // International
+    /\b(?:PHONE|TEL|TELEPHONE|MOBILE|CELL|FAX)\s*[:=]?\s*\d{3}[-.]?\d{3}[-.]?\d{4}\b/gi, // Labeled phone numbers
+    /\b(?:EXT|EXTENSION)\s*[:=]?\s*\d{2,5}\b/gi, // Extensions
+    /\b1[- ]?\d{3}[- ]?\d{3}[- ]?\d{4}\b/, // US with country code
   ],
   
   // Social Security Number
   ssn: [
     /\b\d{3}-\d{2}-\d{4}\b/,
     /\b\d{3}\s\d{2}\s\d{4}\b/,
+    /\b(?:SSN|SOCIAL SECURITY|SOCIAL SECURITY NUMBER)\s*[:=]?\s*\d{3}-\d{2}-\d{4}\b/gi, // Labeled SSN
+    /\b(?:SSN|SOCIAL SECURITY|SOCIAL SECURITY NUMBER)\s*[:=]?\s*\d{9}\b/gi, // Unformatted SSN
+    /\b\d{9}\b/g, // 9-digit numbers (potential SSN)
   ],
   
   // Email addresses
@@ -200,7 +208,22 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b@[A-Za-z0-9_]{3,15}\b/gi, // @username format
   ],
   
-  // Comprehensive numerical patterns (more specific to avoid excessive matches)
+  // Date of birth patterns
+  date_of_birth: [
+    /\b(?:DOB|DATE OF BIRTH|BIRTH DATE|BORN)\s*[:=]?\s*\d{1,2}\/\d{1,2}\/\d{2,4}\b/gi,
+    /\b(?:DOB|DATE OF BIRTH|BIRTH DATE|BORN)\s*[:=]?\s*\d{1,2}-\d{1,2}-\d{2,4}\b/gi,
+    /\b(?:DOB|DATE OF BIRTH|BIRTH DATE|BORN)\s*[:=]?\s*\d{4}-\d{2}-\d{2}\b/gi, // ISO format
+  ],
+  
+  // ZIP code patterns
+  zip_code: [
+    /\b\d{5}(?:-\d{4})?\b/g, // US ZIP codes
+    /\b(?:ZIP|ZIP CODE|POSTAL CODE)\s*[:=]?\s*\d{5}(?:-\d{4})?\b/gi,
+  ],
+  
+
+  
+  // Enhanced numerical data patterns
   numerical_data: [
     // Dates in various formats
     /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, // MM/DD/YYYY or M/D/YYYY
@@ -209,9 +232,6 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     
     // License numbers and IDs (more specific)
     /\b[A-Z]{1,2}\d{6,10}\b/g, // State + numbers format
-    
-    // ZIP codes
-    /\b\d{5}(?:-\d{4})?\b/g, // 5-digit or 9-digit ZIP codes
     
     // Phone numbers (various formats)
     /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g,
@@ -231,7 +251,7 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b\d{8}\b/g, // 8-digit dates like 07061990
   ],
   
-  // Sensitive personal information patterns
+  // Enhanced sensitive data patterns
   sensitive_data: [
     // Dates and birthdays (various formats)
     /\b(?:DOB|BIRTH|BIRTHDAY)\s*[:=]?\s*\d{1,2}\/\d{1,2}\/\d{4}\b/gi, // DOB: 07/06/1990
@@ -263,12 +283,7 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
     /\b\d{5}(?:-\d{4})?\b/g, // 5-digit or 9-digit ZIP codes
   ],
   
-  // ZIP codes
-  zip_code: [
-    /\b\d{5}(?:-\d{4})?\b/, // 5-digit or 9-digit ZIP codes
-  ],
-  
-  // Barcode patterns
+  // Enhanced barcode patterns
   barcode: [
     // Standard barcodes
     /\b\d{12,13}\b/, // UPC/EAN barcodes (12-13 digits)
@@ -304,16 +319,18 @@ export const PII_PATTERNS: Record<string, RegExp[]> = {
 /**
  * Get confidence score for a PII type based on pattern strength and context
  */
-export function getConfidenceScore(type: string, text: string, context: string): number {
+export function getConfidenceScore(piiType: string, detectedText: string, contextText: string): number {
   let baseConfidence = 0.7;
   
-  switch (type) {
+  switch (piiType) {
     case 'credit_card':
       // Check for Luhn algorithm validation
-      if (isValidCreditCard(text.replace(/[^0-9]/g, ''))) {
+      if (isValidCreditCard(detectedText.replace(/[^0-9]/g, ''))) {
         baseConfidence = 0.95;
       } else {
-        baseConfidence = 0.75; // Lower confidence for invalid cards
+        // Still give high confidence for credit card patterns even if they don't pass Luhn
+        // This handles test cards, mock data, and edge cases
+        baseConfidence = 0.85;
       }
       break;
       
