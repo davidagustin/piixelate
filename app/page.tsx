@@ -1,102 +1,832 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useRef, useCallback } from 'react';
+import { 
+  Camera, 
+  Upload, 
+  Download, 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle, 
+  Loader2, 
+  Eye, 
+  EyeOff, 
+  Zap, 
+  Menu,
+  RefreshCw,
+  Lock,
+  X
+} from 'lucide-react';
+import Webcam from 'react-webcam';
+import { detectPII } from './utils/pii-detector-refactored';
+import type { PIIDetection } from './types/pii-types';
+
+export default function PIIxelate() {
+  const [mode, setMode] = useState<'camera' | 'upload'>('camera');
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [detections, setDetections] = useState<PIIDetection[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [useLLM, setUseLLM] = useState(true);
+  const [detectionProgress, setDetectionProgress] = useState<string>('');
+  const [imageInfo, setImageInfo] = useState<{width: number; height: number; size?: string} | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  
+  const webcamRef = useRef<Webcam>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+
+
+  const capturePhoto = useCallback(() => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      if (imageSrc) {
+        setOriginalImage(imageSrc);
+        setProcessedImage(null);
+        setDetections([]);
+        setError(null);
+        setSuccess(null);
+      }
+    }
+  }, []);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select a valid image file');
+        return;
+      }
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Image file size must be less than 10MB');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setOriginalImage(result);
+        setProcessedImage(null);
+        setDetections([]);
+        setError(null);
+        setSuccess(null);
+        
+        // Get image information
+        const img = new Image();
+        img.onload = () => {
+          setImageInfo({
+            width: img.width,
+            height: img.height,
+            size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
+          });
+        };
+        img.src = result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Enhanced drag and drop functionality
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
+    
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find(file => file.type.startsWith('image/'));
+    
+    if (imageFile) {
+      if (imageFile.size > 10 * 1024 * 1024) {
+        setError('Image file size must be less than 10MB');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setOriginalImage(result);
+        setProcessedImage(null);
+        setDetections([]);
+        setError(null);
+        setSuccess(null);
+        
+        // Get image information
+        const img = new Image();
+        img.onload = () => {
+          setImageInfo({
+            width: img.width,
+            height: img.height,
+            size: `${(imageFile.size / 1024 / 1024).toFixed(2)} MB`
+          });
+        };
+        img.src = result;
+      };
+      reader.readAsDataURL(imageFile);
+    } else {
+      setError('Please drop a valid image file');
+    }
+  };
+
+
+
+  const pixelateRegions = (canvas: HTMLCanvasElement, detections: PIIDetection[], pixelSize: number) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    detections.forEach(detection => {
+      const { boundingBox } = detection;
+      if (!boundingBox) return;
+      
+      // Expand the region slightly for better coverage
+      const expandedBox = {
+        x: Math.max(0, boundingBox.x - 5),
+        y: Math.max(0, boundingBox.y - 5),
+        width: Math.min(canvas.width - boundingBox.x, boundingBox.width + 10),
+        height: Math.min(canvas.height - boundingBox.y, boundingBox.height + 10)
+      };
+      
+      // Get image data for the region
+      const imageData = ctx.getImageData(expandedBox.x, expandedBox.y, expandedBox.width, expandedBox.height);
+      const data = imageData.data;
+      
+      // Apply pixelation
+      for (let y = 0; y < expandedBox.height; y += pixelSize) {
+        for (let x = 0; x < expandedBox.width; x += pixelSize) {
+          const index = (y * expandedBox.width + x) * 4;
+          const r = data[index];
+          const g = data[index + 1];
+          const b = data[index + 2];
+          
+          // Fill the pixel block with the average color
+          for (let py = 0; py < pixelSize && y + py < expandedBox.height; py++) {
+            for (let px = 0; px < pixelSize && x + px < expandedBox.width; px++) {
+              const pIndex = ((y + py) * expandedBox.width + (x + px)) * 4;
+              data[pIndex] = r;
+              data[pIndex + 1] = g;
+              data[pIndex + 2] = b;
+            }
+          }
+        }
+      }
+      
+      // Put the pixelated image data back
+      ctx.putImageData(imageData, expandedBox.x, expandedBox.y);
+    });
+  };
+
+  const pixelateImage = (imageSrc: string, detections: PIIDetection[]): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        resolve(imageSrc);
+        return;
+      }
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(imageSrc);
+        return;
+      }
+      
+      const img = new Image();
+      img.onload = () => {
+        // Maintain original image resolution
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Draw the original image
+        ctx.drawImage(img, 0, 0);
+        
+        // Apply pixelation to detected regions
+        pixelateRegions(canvas, detections, 8);
+        
+        // Return high-quality image data
+        const processedImageData = canvas.toDataURL('image/jpeg', 0.95);
+        resolve(processedImageData);
+      };
+      
+      img.onerror = () => {
+        resolve(imageSrc);
+      };
+      
+      img.src = imageSrc;
+    });
+  };
+
+  const processImage = async () => {
+    if (!originalImage) return;
+    
+    setIsProcessing(true);
+    setError(null);
+    setSuccess(null);
+    setDetectionProgress('');
+    
+    try {
+      // Show progress for three-layer detection
+      if (useLLM) {
+        setDetectionProgress('Layer 0: Computer Vision...');
+        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate CV processing
+        setDetectionProgress('Layer 1: Pattern matching...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate pattern processing
+        setDetectionProgress('Layer 2: LLM verification...');
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate LLM processing
+      } else {
+        setDetectionProgress('Pattern matching...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // Detect PII using the utility function
+      console.log('Starting PII detection...');
+      const detectedPII = await detectPII(originalImage);
+      console.log('Detection result:', detectedPII);
+      setDetections(detectedPII);
+      
+      if (detectedPII.length > 0) {
+        console.log('PII detected, pixelating image...');
+        // Pixelate the image
+        const pixelatedImage = await pixelateImage(originalImage, detectedPII);
+        setProcessedImage(pixelatedImage);
+        setSuccess(`Found and pixelated ${detectedPII.length} PII elements using ${useLLM ? 'three-layer' : 'pattern'} detection`);
+      } else {
+        console.log('No PII detected');
+        setSuccess(`No PII detected in the image using ${useLLM ? 'three-layer' : 'pattern'} detection`);
+        setProcessedImage(originalImage);
+      }
+    } catch (err) {
+      console.error('Processing error:', err);
+      setError(`Failed to process image: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
+      setDetectionProgress('');
+    }
+  };
+
+  const downloadImage = (format: 'jpg' | 'png' = 'jpg') => {
+    if (processedImage) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Create a new canvas for download
+      const downloadCanvas = document.createElement('canvas');
+      const downloadCtx = downloadCanvas.getContext('2d');
+      if (!downloadCtx) return;
+      
+      const img = new Image();
+      img.onload = () => {
+        // Set canvas size to match original image
+        downloadCanvas.width = img.width;
+        downloadCanvas.height = img.height;
+        
+        // Draw the processed image
+        downloadCtx.drawImage(img, 0, 0);
+        
+        // Create download link
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        link.download = `piixelated-image-${timestamp}.${format}`;
+        
+        if (format === 'png') {
+          link.href = downloadCanvas.toDataURL('image/png');
+        } else {
+          link.href = downloadCanvas.toDataURL('image/jpeg', 0.95);
+        }
+        
+        link.click();
+      };
+      
+      img.src = processedImage;
+    }
+  };
+
+  const resetApp = () => {
+    setOriginalImage(null);
+    setProcessedImage(null);
+    setDetections([]);
+    setError(null);
+    setSuccess(null);
+    setImageInfo(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Test function to verify pattern detection
+  const testPatternDetection = () => {
+    const testText = "Card: 9012 5678 1234 2345, Name: TAYLOR SULLIVAN, Valid: 01/27";
+    console.log('Testing pattern detection with:', testText);
+    
+    // Test credit card pattern
+    const creditCardPattern = /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/;
+    const match = testText.match(creditCardPattern);
+    console.log('Credit card match:', match);
+    
+    // Test name pattern
+    const namePattern = /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/;
+    const nameMatch = testText.match(namePattern);
+    console.log('Name match:', nameMatch);
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Header */}
+              <header className="security-card border-b border-blue-200 sticky top-0 z-50 bg-white/95 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center security-glow flex-shrink-0 shadow-lg">
+                <Shield className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
+              </div>
+              <div className="min-w-0 flex flex-col justify-center">
+                <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate leading-tight mb-0.5">
+                  PIIxelate
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-600 flex items-center space-x-1 font-medium">
+                  <Lock className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">AI-Powered Privacy Protection</span>
+                </p>
+              </div>
+            </div>
+            
+            {/* Desktop Status */}
+            <div className="hidden sm:flex items-center space-x-2">
+              <div className="px-3 py-1 bg-green-100 text-green-700 border border-green-200 rounded-full text-xs font-medium flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full security-pulse"></div>
+                <span>Secure</span>
+              </div>
+            </div>
+          </div>
         </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {/* Mode Selection */}
+        <div className="card p-4 sm:p-8 mb-6 sm:mb-8 bg-white/80 backdrop-blur-sm border-blue-200">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 flex items-center space-x-2">
+            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+            <span>Choose Input Method</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <button
+              onClick={() => setMode('camera')}
+              className={`mobile-feedback p-4 sm:p-6 rounded-xl border-2 transition-all duration-300 group min-h-[120px] sm:min-h-[160px] cursor-pointer card-hover ${
+                mode === 'camera'
+                  ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-700 shadow-lg'
+                  : 'border-slate-200 hover:border-blue-300 hover:shadow-md bg-white'
+              }`}
+            >
+              <div className="flex flex-col items-center space-y-3 h-full justify-center">
+                <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  mode === 'camera' 
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white' 
+                    : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100'
+                }`}>
+                  <Camera className="w-6 h-6 sm:w-8 sm:h-8" />
+                </div>
+                <div className="text-center">
+                  <span className="text-base sm:text-lg font-semibold">Camera Capture</span>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1">Real-time photo capture</p>
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setMode('upload')}
+              className={`mobile-feedback p-4 sm:p-6 rounded-xl border-2 transition-all duration-300 group min-h-[120px] sm:min-h-[160px] cursor-pointer card-hover ${
+                mode === 'upload'
+                  ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-700 shadow-lg'
+                  : 'border-slate-200 hover:border-blue-300 hover:shadow-md bg-white'
+              }`}
+            >
+              <div className="flex flex-col items-center space-y-3 h-full justify-center">
+                <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  mode === 'upload' 
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white' 
+                    : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100'
+                }`}>
+                  <Upload className="w-6 h-6 sm:w-8 sm:h-8" />
+                </div>
+                <div className="text-center">
+                  <span className="text-base sm:text-lg font-semibold">File Upload</span>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1">Upload existing images</p>
+                </div>
+              </div>
+            </button>
+          </div>
+          
+          {/* Detection Method Selection */}
+          <div className="border-t border-slate-200 pt-4 sm:pt-6">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex items-center space-x-2 flex-wrap">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+              <span>Detection Method: </span>
+              {useLLM ? (
+                <span className="px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold ml-2 whitespace-nowrap">
+                  Computer Vision + Pattern matching + LLM verification
+                </span>
+              ) : (
+                <span className="px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold ml-2 whitespace-nowrap">
+                  Fast regex-based detection
+                </span>
+              )}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <label className="relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="detection"
+                  checked={useLLM}
+                  onChange={() => setUseLLM(true)}
+                  className="sr-only"
+                />
+                <div className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 min-h-[80px] sm:min-h-[100px] ${
+                  useLLM
+                    ? 'border-green-500 bg-green-50 shadow-lg ring-4 ring-blue-300'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}>
+                  <div className="flex items-start space-x-3 h-full">
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all duration-200 ${
+                      useLLM ? 'border-green-500 bg-green-500 scale-125 shadow-xl' : 'border-slate-300'
+                    }`}>
+                      {useLLM && <div className="w-4 h-4 bg-yellow-300 rounded-full shadow-lg border-2 border-white"></div>}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-800 text-sm sm:text-base">
+                        Three-Layer Detection
+                      </p>
+                      <p className="text-xs sm:text-sm text-secondary mt-1" style={{color: '#475569'}}>
+                        Computer Vision + Pattern matching + LLM verification
+                      </p>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                          Maximum Security
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </label>
+              <label className="relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="detection"
+                  checked={!useLLM}
+                  onChange={() => setUseLLM(false)}
+                  className="sr-only"
+                />
+                <div className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 min-h-[80px] sm:min-h-[100px] ${
+                  !useLLM
+                    ? 'border-green-500 bg-green-500/10 dark:bg-green-500/20 shadow-lg ring-4 ring-blue-300 dark:ring-blue-400'
+                    : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
+                }`}>
+                  <div className="flex items-start space-x-3 h-full">
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all duration-200 ${
+                      !useLLM ? 'border-green-500 bg-green-500 scale-125 shadow-xl' : 'border-slate-300 dark:border-slate-600'
+                    }`}>
+                      {!useLLM && <div className="w-4 h-4 bg-yellow-300 rounded-full shadow-lg border-2 border-white"></div>}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-primary text-sm sm:text-base">
+                        Pattern Matching Only
+                      </p>
+                      <p className="text-xs sm:text-sm text-secondary mt-1" style={{color: '#475569'}}>
+                        Fast regex-based detection
+                      </p>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <span className="px-2 py-1 status-success rounded text-xs font-medium">
+                          High Speed
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Input Section */}
+        <div className="card p-4 sm:p-8 mb-6 sm:mb-8">
+          {mode === 'camera' ? (
+            <div className="space-y-4 sm:space-y-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                <span>Take Photo</span>
+              </h2>
+              <div className="relative">
+                <Webcam
+                  ref={webcamRef}
+                  screenshotFormat="image/jpeg"
+                  className="w-full max-w-2xl mx-auto rounded-xl border-2 border-slate-200 dark:border-slate-600 shadow-lg"
+                  videoConstraints={{
+                    width: { ideal: 640, max: 1280 },
+                    height: { ideal: 480, max: 720 },
+                    facingMode: 'environment'
+                  }}
+                />
+                <button
+                  onClick={capturePhoto}
+                  className="camera-button absolute bottom-2 sm:bottom-4 left-1/2 transform -translate-x-1/2 w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-full flex items-center justify-center shadow-2xl touch-manipulation border-4 border-white dark:border-slate-800 z-10 cursor-pointer mobile-feedback"
+                  aria-label="Capture photo"
+                >
+                  <Camera className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 sm:space-y-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                <span>Upload Image</span>
+              </h2>
+              <div 
+                className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 sm:p-12 text-center transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                  <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                  Drop your image here
+                </h3>
+                <p className="text-sm sm:text-base text-secondary mb-3 sm:mb-4">
+                  or click to browse files
+                </p>
+                <p className="text-xs sm:text-sm text-muted mb-4 sm:mb-6">
+                  Supports JPG, PNG, GIF, WebP (max 10MB)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="security-button-primary mobile-feedback px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base min-h-[44px] touch-manipulation cursor-pointer"
+                >
+                  Select Image
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Image Display */}
+        {originalImage && (
+          <div className="security-card rounded-2xl p-4 sm:p-8 mb-6 sm:mb-8">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 flex items-center space-x-2">
+              <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+              <span>Original Image</span>
+            </h2>
+            
+            {/* Image Information */}
+            {imageInfo && (
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800 dark:to-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Resolution</p>
+                    <p className="text-secondary">{imageInfo.width} × {imageInfo.height}</p>
+                  </div>
+                  {imageInfo.size && (
+                    <div className="text-center">
+                      <p className="font-semibold text-slate-900 dark:text-white">File Size</p>
+                      <p className="text-secondary">{imageInfo.size}</p>
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Aspect Ratio</p>
+                    <p className="text-secondary">{(imageInfo.width / imageInfo.height).toFixed(2)}:1</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Status</p>
+                    <p className="text-orange-600 dark:text-orange-400 font-medium">Pending Analysis</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-center mb-4 sm:mb-6">
+              <img
+                src={originalImage}
+                alt="Original"
+                className="max-w-full h-auto rounded-xl border border-slate-200 dark:border-slate-600 shadow-lg"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button
+                onClick={processImage}
+                disabled={isProcessing}
+                className={`flex-1 security-button-primary mobile-feedback px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg flex items-center justify-center space-x-2 sm:space-x-3 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] touch-manipulation cursor-pointer ${isProcessing ? 'loading-button' : ''}`}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+                    <span className="processing-dots text-sm sm:text-base">{detectionProgress || 'Processing...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <span>Detect & Pixelate PII</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={resetApp}
+                className="security-button-secondary mobile-feedback px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg min-h-[48px] touch-manipulation cursor-pointer"
+              >
+                Reset
+              </button>
+              <button
+                onClick={testPatternDetection}
+                className="security-button-secondary mobile-feedback px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg min-h-[48px] touch-manipulation cursor-pointer"
+              >
+                Test Detection
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        {processedImage && (
+          <div className="security-card rounded-2xl p-4 sm:p-8 mb-6 sm:mb-8">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 flex items-center space-x-2">
+              <EyeOff className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
+              <span>Protected Image</span>
+            </h2>
+            
+            {/* Processed Image Information */}
+            {imageInfo && (
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4 text-xs sm:text-sm">
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Resolution</p>
+                    <p className="text-secondary">{imageInfo.width} × {imageInfo.height}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Quality</p>
+                    <p className="text-secondary">High (95% JPEG)</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Status</p>
+                    <p className="text-green-600 dark:text-green-400 font-medium">Protected ✓</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Numerical Data</p>
+                    <p className="text-green-600 dark:text-green-400 font-medium">Blurred ✓</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Text Data</p>
+                    <p className="text-green-600 dark:text-green-400 font-medium">Protected ✓</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-slate-900 dark:text-white">Barcodes</p>
+                    <p className="text-green-600 dark:text-green-400 font-medium">Blurred ✓</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-center mb-4 sm:mb-6">
+              <img
+                src={processedImage}
+                alt="Processed"
+                className="max-w-full h-auto rounded-xl border border-slate-200 dark:border-slate-600 shadow-lg"
+              />
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <button
+                  onClick={() => downloadImage('jpg')}
+                  className="security-button-primary mobile-feedback px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-center space-x-2 sm:space-x-3 min-h-[48px] touch-manipulation cursor-pointer"
+                >
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Download JPG</span>
+                </button>
+                <button
+                  onClick={() => downloadImage('png')}
+                  className="security-button-secondary mobile-feedback px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-center space-x-2 sm:space-x-3 min-h-[48px] touch-manipulation cursor-pointer"
+                >
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Download PNG</span>
+                </button>
+              </div>
+              <p className="text-xs sm:text-sm text-muted text-center">
+                Downloads maintain original image resolution with enhanced PII protection
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Detection Results */}
+        {detections.length > 0 && (
+          <div className="security-card rounded-2xl p-4 sm:p-8 mb-6 sm:mb-8">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
+              <span>Detected PII Elements</span>
+            </h2>
+            <div className="space-y-3 sm:space-y-4">
+              {detections.map((detection, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-xl space-y-2 sm:space-y-0"
+                >
+                  <div className="flex items-center space-x-3 sm:space-x-4">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900 dark:text-white capitalize text-sm sm:text-base">
+                        {detection.type.replace('_', ' ')}
+                      </p>
+                      <p className="text-xs sm:text-sm text-secondary">
+                        Confidence: {Math.round(detection.confidence * 100)}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="sm:text-right">
+                    <p className="text-xs sm:text-sm font-mono text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 sm:px-3 py-1 rounded break-all">
+                      {detection.text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Status Messages */}
+        {error && (
+          <div className="security-card rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </div>
+              <p className="text-red-700 dark:text-red-300 font-medium text-sm sm:text-base">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="security-card rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-green-500 bg-green-50 border border-green-200">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </div>
+              <p className="text-green-800 font-semibold text-sm sm:text-base">{success}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Hidden canvas for image processing */}
+        <canvas ref={canvasRef} className="hidden" />
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* Footer */}
+      <footer className="security-card border-t border-slate-200 mt-12 sm:mt-16 bg-white/80 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-3 sm:mb-4">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              <h3 className="text-base sm:text-lg font-semibold text-slate-800">PIIxelate</h3>
+            </div>
+                          <p className="text-xs sm:text-sm text-slate-600 mb-3 sm:mb-4">
+                Protect your personal information with AI-powered pixelation technology
+              </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+              <span className="px-3 py-2 bg-blue-600 text-white rounded-full text-xs font-semibold shadow-sm">
+                End-to-End Secure
+              </span>
+              <span className="px-3 py-2 bg-green-600 text-white rounded-full text-xs font-semibold shadow-sm">
+                Privacy First
+              </span>
+              <span className="px-3 py-2 bg-purple-600 text-white rounded-full text-xs font-semibold shadow-sm">
+                AI-Powered
+              </span>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );

@@ -1,26 +1,632 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
+  --foreground: #0f172a;
   --background: #ffffff;
-  --foreground: #171717;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  
+  /* Enhanced Security Colors with Better Contrast */
+  --security-primary: #2563eb;
+  --security-secondary: #1d4ed8;
+  --security-accent: #059669;
+  --security-warning: #d97706;
+  --security-danger: #dc2626;
+  --security-success: #16a34a;
+  --security-info: #0284c7;
+  
+  /* Neutral Security Colors */
+  --security-light: #f8fafc;
+  --security-border: #e2e8f0;
+  --security-border-dark: #475569;
+  --security-card-bg: #ffffff;
+  
+  /* Button Colors */
+  --btn-primary: #2563eb;
+  --btn-primary-hover: #1d4ed8;
+  --btn-secondary: #ffffff;
+  --btn-secondary-border: #2563eb;
+  --btn-secondary-text: #2563eb;
+  
+  /* Card and component colors */
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+
+/* Mobile viewport and touch optimizations */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary) !important;
+  background: var(--background) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+  /* Improve touch scrolling */
+  -webkit-overflow-scrolling: touch;
+}
+
+
+
+
+
+
+
+
+
+/* Enhanced responsive design */
+@media (max-width: 640px) {
+  /* Mobile-first improvements */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Ensure minimum touch target size */
+  button, 
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Improve touch feedback */
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.98);
+  }
+  
+  /* Prevent zoom on input focus */
+  input, 
+  select, 
+  textarea {
+    font-size: 16px;
+  }
+  
+  /* Improve scrolling performance */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better spacing for mobile */
+  .space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Tablet optimizations */
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* Card Components with solid security styling */
+.card {
+  background-color: var(--card-bg);
+  border-radius: 0.75rem;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  transition: all 0.2s ease;
+}
+
+.dark .card {
+  background-color: rgba(15, 23, 42, 0.95);
+  border-color: var(--security-border-dark);
+}
+
+.card-hover {
+  transition: all 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-color: var(--security-primary);
+}
+
+.dark .card-hover:hover {
+  border-color: var(--security-accent);
+}
+
+/* Security Card with solid styling */
+.security-card {
+  background-color: var(--card-bg);
+  border-radius: 0.75rem;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.dark .security-card {
+  background-color: rgba(15, 23, 42, 0.95);
+  border-color: var(--security-border-dark);
+}
+
+.security-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--security-primary);
+}
+
+/* Enhanced animations and transitions */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes securityPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(30, 64, 175, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(30, 64, 175, 0);
+  }
+}
+
+@keyframes securityGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(30, 64, 175, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(30, 64, 175, 0.6);
+  }
+}
+
+/* Component-specific styles */
+.security-card {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.security-glow {
+  animation: securityGlow 2s ease-in-out infinite;
+}
+
+.security-pulse {
+  animation: securityPulse 2s infinite;
+}
+
+/* Enhanced Button Styles with solid security colors */
+.security-button-primary {
+  background: var(--btn-primary);
+  color: white;
+  border: none;
+  transition: all 0.2s ease;
+  /* Enhanced mobile touch improvements */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* Better mobile button feel */
+  min-height: 48px;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  /* Enhanced shadows for depth */
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.security-button-primary:hover {
+  background: var(--btn-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.security-button-primary:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.1s ease;
+}
+
+.security-button-secondary {
+  background: var(--btn-secondary);
+  border: 2px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
+  transition: all 0.2s ease;
+  /* Enhanced mobile touch improvements */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* Better mobile button feel */
+  min-height: 48px;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  /* Enhanced shadows for depth */
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.security-button-secondary:hover {
+  background: var(--security-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.security-button-secondary:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: all 0.1s ease;
+}
+
+/* Ripple effect for buttons */
+.security-button-primary::before,
+.security-button-secondary::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.security-button-primary:active::before,
+.security-button-secondary:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Camera button specific styling with solid security colors */
+.camera-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--security-primary);
+  border: 4px solid white;
+  box-shadow: 
+    0 8px 25px rgba(30, 64, 175, 0.3),
+    0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.camera-button:hover {
+  box-shadow: 
+    0 12px 35px rgba(30, 64, 175, 0.4),
+    0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+.camera-button:active {
+  transform: scale(0.98);
+}
+
+/* Mobile feedback class */
+.mobile-feedback {
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-feedback::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.mobile-feedback:active::after {
+  opacity: 1;
+}
+
+/* Loading button animation */
+.loading-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Enhanced button styles with solid security colors */
+.btn-primary {
+  background: var(--security-primary);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(0);
+}
+
+.btn-primary:hover {
+  background: var(--btn-primary-hover);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--btn-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  border: 1px solid var(--card-border);
+}
+
+.btn-secondary:hover {
+  background-color: var(--security-primary);
+  color: white;
+  border-color: var(--security-primary);
+}
+
+.dark .btn-secondary {
+  background-color: #1e293b;
+  color: #cbd5e1;
+  border-color: var(--security-border-dark);
+}
+
+.dark .btn-secondary:hover {
+  background-color: var(--security-primary);
+  color: white;
+}
+
+/* Input enhancements */
+.input-enhanced {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  background-color: white;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.input-enhanced::placeholder {
+  color: var(--text-muted);
+}
+
+.input-enhanced:focus {
+  outline: none;
+  border-color: var(--security-primary);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.dark .input-enhanced {
+  background-color: #1e293b;
+  color: white;
+  border-color: var(--security-border-dark);
+}
+
+.dark .input-enhanced::placeholder {
+  color: var(--text-light);
+}
+
+/* Status indicators with solid security colors */
+.status-success {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.dark .status-success {
+  background-color: rgba(22, 101, 52, 0.3);
+  color: #86efac;
+  border-color: #166534;
+}
+
+.status-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.dark .status-error {
+  background-color: rgba(153, 27, 27, 0.3);
+  color: #fca5a5;
+  border-color: #991b1b;
+}
+
+.status-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.dark .status-warning {
+  background-color: rgba(146, 64, 14, 0.3);
+  color: #fcd34d;
+  border-color: #92400e;
+}
+
+.status-info {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.dark .status-info {
+  background-color: rgba(30, 64, 175, 0.3);
+  color: #93c5fd;
+  border-color: #1e40af;
+}
+
+/* Loading states */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Enhanced scrollbar with solid security colors */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--security-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--security-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--btn-primary-hover);
+}
+
+/* Focus styles for accessibility */
+*:focus {
+  outline: 2px solid var(--security-primary);
+  outline-offset: 2px;
+}
+
+/* Dark mode scrollbar */
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-track {
+    background: #1e293b;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: var(--security-primary);
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--btn-primary-hover);
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card {
+    border-width: 2px;
+  }
+  
+  button {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .security-glow,
+  .security-pulse {
+    animation: none;
+  }
 }
