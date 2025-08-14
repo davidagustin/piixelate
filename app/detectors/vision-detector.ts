@@ -21,6 +21,12 @@ export class VisionDetector {
    * Initialize the vision detector
    */
   public async initialize(): Promise<void> {
+    // Skip initialization in Node.js environment
+    if (typeof window === 'undefined') {
+      this.isInitialized = false;
+      return;
+    }
+    
     if (!this.config.enableComputerVision) {
       return;
     }
@@ -40,6 +46,11 @@ export class VisionDetector {
    * @returns Array of vision detections
    */
   public async detectPII(imageSource: string): Promise<VisionDetection[]> {
+    // Return empty array in Node.js environment
+    if (typeof window === 'undefined') {
+      return [];
+    }
+    
     if (!this.config.enableComputerVision || !this.isInitialized) {
       return [];
     }

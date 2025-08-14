@@ -15,11 +15,21 @@ export interface DocumentRegion {
 // Canvas-based image processing (OpenCV alternative)
 class CanvasProcessor {
   async initialize(): Promise<void> {
+    // Skip initialization in Node.js environment
+    if (typeof window === 'undefined') {
+      logger.info('Canvas processor skipped in Node.js environment');
+      return;
+    }
     logger.info('Canvas-based image processor initialized');
   }
 
   // Detect text regions using canvas-based image processing
   async detectTextRegions(imageData: ImageData): Promise<VisionDetection[]> {
+    // Return empty array in Node.js environment
+    if (typeof window === 'undefined') {
+      return [];
+    }
+    
     try {
       const canvas = document.createElement('canvas');
       canvas.width = imageData.width;
@@ -44,6 +54,11 @@ class CanvasProcessor {
 
   // Detect document structure using canvas
   async detectDocumentStructure(imageData: ImageData): Promise<DocumentRegion[]> {
+    // Return empty array in Node.js environment
+    if (typeof window === 'undefined') {
+      return [];
+    }
+    
     try {
       const regions: DocumentRegion[] = [];
       const { width, height } = imageData;

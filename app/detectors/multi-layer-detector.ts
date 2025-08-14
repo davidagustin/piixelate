@@ -98,6 +98,11 @@ export class MultiLayerDetector {
     this.visionDetector = new VisionDetector();
     this.specializedDetector = new SpecializedDetector();
     this.llmVerifier = new LLMVerifier();
+    
+    // Disable vision processing in Node.js environment
+    if (typeof window === 'undefined') {
+      this.config.layers.vision.enabled = false;
+    }
   }
 
   /**
