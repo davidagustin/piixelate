@@ -120,7 +120,6 @@ export class EnhancedLLMDetector {
       const cacheKey = this.generateCacheKey(text, context);
       const cachedResult = this.detectionCache.get(cacheKey);
       if (cachedResult && Date.now() - this.lastDetectionTime < 300000) { // 5 minute cache
-        console.log('Using cached enhanced LLM detection result');
         return cachedResult.detections;
       }
 
@@ -175,7 +174,6 @@ export class EnhancedLLMDetector {
           }
         }
       } catch (error) {
-        console.warn(`Provider ${provider.name} failed:`, error);
         continue;
       }
     }
@@ -210,7 +208,6 @@ export class EnhancedLLMDetector {
           return result.detections;
         }
       } catch (error) {
-        console.warn(`Provider ${provider.name} failed:`, error);
         continue;
       }
     }
@@ -331,7 +328,6 @@ IMPORTANT: Only return valid JSON. No additional text.`;
       const parsed = JSON.parse(response);
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-      console.error('Failed to parse LLM response:', error);
       return [];
     }
   }

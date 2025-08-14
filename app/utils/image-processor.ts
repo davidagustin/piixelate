@@ -15,7 +15,6 @@ export function pixelateRegions(
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    console.error('Failed to get canvas context');
     return;
   }
   
@@ -318,7 +317,6 @@ export function downloadProcessedImage(
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    console.error('Failed to get canvas context');
     return;
   }
   
@@ -345,7 +343,9 @@ export function downloadProcessedImage(
     link.click();
   };
   
-  img.onerror = () => console.error('Failed to load image for download');
+  img.onerror = () => {
+    // Failed to load image for download
+  };
   img.src = imageSrc;
 }
 

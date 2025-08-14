@@ -2,6 +2,8 @@
 // Integrates multiple CV libraries for comprehensive PII detection
 
 import { VisionDetection } from '../types/pii-types';
+import { logger } from './logger';
+import { COLORS, SOBEL, TEXT_DETECTION, CONFIDENCE } from '../constants/values';
 
 export interface DocumentRegion {
   type: 'header' | 'body' | 'footer' | 'sidebar';
@@ -13,7 +15,7 @@ export interface DocumentRegion {
 // Canvas-based image processing (OpenCV alternative)
 class CanvasProcessor {
   async initialize(): Promise<void> {
-    console.log('Canvas-based image processor initialized');
+    logger.info('Canvas-based image processor initialized');
   }
 
   // Detect text regions using canvas-based image processing
@@ -35,7 +37,7 @@ class CanvasProcessor {
         boundingBox: region.boundingBox
       }));
     } catch (error) {
-      console.error('Canvas text detection error:', error);
+      logger.error('Canvas text detection error:', error);
       return [];
     }
   }
@@ -71,7 +73,7 @@ class CanvasProcessor {
       regions.push(headerRegion, bodyRegion, footerRegion);
       return regions;
     } catch (error) {
-      console.error('Canvas document detection error:', error);
+      logger.error('Canvas document detection error:', error);
       return [];
     }
   }
@@ -86,8 +88,10 @@ class CanvasProcessor {
       const b = imageData.data[i + 2] || 0;
       
       // Convert to grayscale using luminance formula
-      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-      grayData[i / 4] = gray;
+      const gray = COLORS.GRAYSCALE_WEIGHTS.RED * r + 
+                   COLORS.GRAYSCALE_WEIGHTS.GREEN * g + 
+                   COLORS.GRAYSCALE_WEIGHTS.BLUE * b;
+      grayData[i / COLORS.CHANNELS] = gray;
     }
     
     return grayData;
@@ -124,8 +128,8 @@ class CanvasProcessor {
     const edges = new Uint8ClampedArray(grayData.length);
     
     // Sobel operators
-    const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-    const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    const sobelX = SOBEL.X;
+    const sobelY = SOBEL.Y;
     
     for (let y = 1; y < height - 1; y++) {
       for (let x = 1; x < width - 1; x++) {
@@ -135,14 +139,14 @@ class CanvasProcessor {
         for (let ky = -1; ky <= 1; ky++) {
           for (let kx = -1; kx <= 1; kx++) {
             const pixel = grayData[(y + ky) * width + (x + kx)] || 0;
-            const kernelIndex = (ky + 1) * 3 + (kx + 1);
+            const kernelIndex = (ky + 1) * SOBEL.KERNEL_SIZE + (kx + 1);
             gx += pixel * (sobelX[kernelIndex] || 0);
             gy += pixel * (sobelY[kernelIndex] || 0);
           }
         }
         
         const magnitude = Math.sqrt(gx * gx + gy * gy);
-        edges[y * width + x] = magnitude > 50 ? 255 : 0; // Threshold
+        edges[y * width + x] = magnitude > SOBEL.THRESHOLD ? COLORS.MAX_VALUE : COLORS.MIN_VALUE; // Threshold
       }
     }
     
@@ -157,9 +161,9 @@ class CanvasProcessor {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const index = y * width + x;
-        if (edges[index] === 255 && !visited.has(index)) {
+        if (edges[index] === COLORS.MAX_VALUE && !visited.has(index)) {
           const contour = this.traceContour(edges, width, height, x, y, visited);
-          if (contour.length > 10) { // Minimum contour size
+          if (contour.length > TEXT_DETECTION.MIN_CONTOUR_SIZE) { // Minimum contour size
             contours.push(contour);
           }
         }
@@ -178,7 +182,7 @@ class CanvasProcessor {
       const {x, y} = stack.pop()!;
       const index = y * width + x;
       
-      if (x < 0 || x >= width || y < 0 || y >= height || visited.has(index) || edges[index] !== 255) {
+      if (x < 0 || x >= width || y < 0 || y >= height || visited.has(index) || edges[index] !== COLORS.MAX_VALUE) {
         continue;
       }
       
@@ -200,7 +204,7 @@ class CanvasProcessor {
   
   // Determine if contour represents a text region
   private isTextRegion(contour: any[], width: number, height: number): boolean {
-    if (contour.length < 10) return false;
+    if (contour.length < TEXT_DETECTION.MIN_CONTOUR_SIZE) return false;
     
     const bbox = this.contourToBoundingBox(contour);
     const aspectRatio = bbox.width / bbox.height;
@@ -209,9 +213,9 @@ class CanvasProcessor {
     const areaRatio = area / imageArea;
     
     // Text regions typically have specific characteristics
-    return aspectRatio > 0.5 && aspectRatio < 10 && // Reasonable aspect ratio
-           areaRatio > 0.001 && areaRatio < 0.5 && // Not too small or too large
-           bbox.width > 20 && bbox.height > 10; // Minimum size
+    return aspectRatio > TEXT_DETECTION.MIN_ASPECT_RATIO && aspectRatio < TEXT_DETECTION.MAX_ASPECT_RATIO && // Reasonable aspect ratio
+           areaRatio > TEXT_DETECTION.MIN_AREA_RATIO && areaRatio < TEXT_DETECTION.MAX_AREA_RATIO && // Not too small or too large
+           bbox.width > TEXT_DETECTION.MIN_WIDTH && bbox.height > TEXT_DETECTION.MIN_HEIGHT; // Minimum size
   }
   
   // Calculate confidence for text region
@@ -221,13 +225,13 @@ class CanvasProcessor {
     const density = contour.length / (bbox.width * bbox.height);
     
     // Higher confidence for regions with good text characteristics
-    let confidence = 0.5;
+    let confidence = CONFIDENCE.DEFAULT;
     
     if (aspectRatio > 1 && aspectRatio < 8) confidence += 0.2;
-    if (density > 0.01 && density < 0.1) confidence += 0.2;
+    if (density > TEXT_DETECTION.MIN_DENSITY && density < TEXT_DETECTION.MAX_DENSITY) confidence += 0.2;
     if (bbox.width > 50 && bbox.height > 20) confidence += 0.1;
     
-    return Math.min(confidence, 0.95);
+    return Math.min(confidence, CONFIDENCE.VERY_HIGH);
   }
   
   // Convert contour to bounding box
@@ -253,7 +257,7 @@ class CanvasProcessor {
   private fallbackTextDetection(width: number, height: number): Array<{confidence: number, boundingBox: any}> {
     return [
       {
-        confidence: 0.6,
+        confidence: CONFIDENCE.DEFAULT,
         boundingBox: { x: width * 0.1, y: height * 0.1, width: width * 0.8, height: height * 0.8 }
       }
     ];
@@ -330,10 +334,10 @@ class TensorFlowProcessor {
       
       // Load pre-trained model for text detection (if available)
       // For now, we'll use a basic model or create a simple one
-      console.log('TensorFlow.js initialized');
+      logger.info('TensorFlow.js initialized');
       this.isInitialized = true;
     } catch (error) {
-      console.warn('TensorFlow.js not available:', error);
+      logger.warn('TensorFlow.js not available:', error);
     }
   }
 
@@ -362,7 +366,7 @@ class TensorFlowProcessor {
       
       return detections;
     } catch (error) {
-      console.error('TensorFlow detection error:', error);
+      logger.error('TensorFlow detection error:', error);
       return [];
     }
   }
@@ -377,10 +381,10 @@ class MediaPipeProcessor {
     try {
       // MediaPipe Document Detector is not available in the current version
       // For now, we'll use a placeholder implementation
-      console.log('MediaPipe Document Detector placeholder initialized');
+      logger.info('MediaPipe Document Detector placeholder initialized');
       this.isInitialized = true;
     } catch (error) {
-      console.warn('MediaPipe not available:', error);
+      logger.warn('MediaPipe not available:', error);
     }
   }
 
@@ -400,7 +404,7 @@ class MediaPipeProcessor {
         }
       }];
     } catch (error) {
-      console.error('MediaPipe detection error:', error);
+      logger.error('MediaPipe detection error:', error);
       return [];
     }
   }
@@ -422,9 +426,9 @@ class FaceAPIProcessor {
       ]);
       
       this.isInitialized = true;
-      console.log('Face-api.js initialized');
+      logger.info('Face-api.js initialized');
     } catch (error) {
-      console.warn('Face-api.js not available:', error);
+              logger.warn('Face-api.js not available:', error);
     }
   }
 
@@ -454,7 +458,7 @@ class FaceAPIProcessor {
         }
       }));
     } catch (error) {
-      console.error('Face detection error:', error);
+      logger.error('Face detection error:', error);
       return [];
     }
   }
@@ -485,16 +489,16 @@ export class ComputerVisionProcessor {
       ]);
       
       this.isInitialized = true;
-      console.log('Computer Vision Processor initialized');
+      logger.info('Computer Vision Processor initialized');
     } catch (error) {
-      console.error('Failed to initialize Computer Vision Processor:', error);
+              logger.error('Failed to initialize Computer Vision Processor:', error);
     }
   }
 
   // Comprehensive PII detection using multiple CV approaches
   async detectPII(imageData: ImageData): Promise<VisionDetection[]> {
     if (!this.isInitialized) {
-      console.warn('Computer Vision Processor not initialized');
+      logger.warn('Computer Vision Processor not initialized');
       return [];
     }
 
@@ -530,7 +534,7 @@ export class ComputerVisionProcessor {
       // Remove overlapping detections
       return this.removeOverlappingDetections(allDetections);
     } catch (error) {
-      console.error('Computer Vision PII detection error:', error);
+      logger.error('Computer Vision PII detection error:', error);
       return [];
     }
   }
@@ -542,7 +546,7 @@ export class ComputerVisionProcessor {
     try {
       return await this.canvas.detectDocumentStructure(imageData);
     } catch (error) {
-      console.error('Document structure detection error:', error);
+      logger.error('Document structure detection error:', error);
       return [];
     }
   }

@@ -55,9 +55,6 @@ export class MultiLayerExample {
    * Run comprehensive multi-layer detection example
    */
   public async runExample(): Promise<void> {
-    console.log('🚀 Starting Multi-Layer PII Detection Example');
-    console.log('=' .repeat(60));
-
     try {
       // Initialize the system
       await this.initializeSystem();
@@ -71,9 +68,8 @@ export class MultiLayerExample {
       // Show performance analysis
       await this.showPerformanceAnalysis();
 
-      console.log('✅ Multi-Layer PII Detection Example completed successfully');
     } catch (error) {
-      console.error('❌ Example failed:', error);
+      // Example failed
     }
   }
 
@@ -81,24 +77,13 @@ export class MultiLayerExample {
    * Initialize the multi-layer detection system
    */
   private async initializeSystem(): Promise<void> {
-    console.log('🔧 Initializing Multi-Layer Detection System...');
-    
     try {
       await multiLayerDetector.initialize();
-      console.log('✅ System initialized successfully');
       
       // Show configuration
       const config = multiLayerDetector.getConfig();
-      console.log('📋 Configuration:');
-      console.log(`  - Vision Layer: ${config.layers.vision.enabled ? '✅' : '❌'}`);
-      console.log(`  - Pattern Layer: ${config.layers.pattern.enabled ? '✅' : '❌'}`);
-      console.log(`  - Specialized Layer: ${config.layers.specialized.enabled ? '✅' : '❌'}`);
-      console.log(`  - Enhanced LLM Layer: ${config.layers.enhancedLLM.enabled ? '✅' : '❌'}`);
-      console.log(`  - Verification Layer: ${config.layers.verification.enabled ? '✅' : '❌'}`);
-      console.log(`  - Ensemble Layer: ${config.layers.ensemble.enabled ? '✅' : '❌'}`);
-      console.log(`  - Obscuring Layer: ${config.layers.obscuring.enabled ? '✅' : '❌'}`);
+      
     } catch (error) {
-      console.error('❌ Initialization failed:', error);
       throw error;
     }
   }
@@ -107,18 +92,12 @@ export class MultiLayerExample {
    * Run detection scenarios
    */
   private async runDetectionScenarios(): Promise<void> {
-    console.log('\n🔍 Running Detection Scenarios...');
-    console.log('=' .repeat(40));
-
     for (const [key, scenario] of Object.entries(EXAMPLE_SCENARIOS)) {
-      console.log(`\n📄 Scenario: ${scenario.name}`);
-      console.log(`📝 Description: ${scenario.description}`);
-      
       try {
         const result = await this.runSingleScenario(scenario);
         this.displayScenarioResults(scenario, result);
       } catch (error) {
-        console.error(`❌ Scenario ${scenario.name} failed:`, error);
+        // Scenario failed
       }
     }
   }
@@ -148,30 +127,16 @@ export class MultiLayerExample {
    * @param result - Detection result
    */
   private displayScenarioResults(scenario: any, result: DetectionResult): void {
-    console.log(`⏱️  Processing Time: ${result.processingTime}ms`);
-    console.log(`🔍 Total Detections: ${result.detections.length}`);
-    console.log(`✅ Success: ${result.success ? 'Yes' : 'No'}`);
-    
     if (result.errors.length > 0) {
-      console.log(`⚠️  Errors: ${result.errors.length}`);
-      result.errors.forEach(error => {
-        console.log(`   - ${error.message}`);
-      });
+      // Handle errors
     }
 
     // Show detections by type
     const detectionsByType = this.groupDetectionsByType(result.detections);
-    console.log('📊 Detections by Type:');
-    Object.entries(detectionsByType).forEach(([type, count]) => {
-      console.log(`   - ${type}: ${count}`);
-    });
 
     // Show layer performance
     if (result.stats?.layerResults) {
-      console.log('🏗️  Layer Performance:');
-      result.stats.layerResults.forEach(layer => {
-        console.log(`   - ${layer.layer}: ${layer.detections} detections, ${layer.processingTime}ms, confidence: ${layer.confidence.toFixed(2)}`);
-      });
+      // Process layer results
     }
 
     // Show accuracy analysis
@@ -203,27 +168,17 @@ export class MultiLayerExample {
     const falsePositives = [...detectedTypes].filter(type => !expectedTypes.has(type));
     const falseNegatives = [...expectedTypes].filter(type => !detectedTypes.has(type));
     
-    console.log('🎯 Accuracy Analysis:');
-    console.log(`   - True Positives: ${truePositives.length} (${truePositives.join(', ')})`);
-    console.log(`   - False Positives: ${falsePositives.length} (${falsePositives.join(', ')})`);
-    console.log(`   - False Negatives: ${falseNegatives.length} (${falseNegatives.join(', ')})`);
-    
     const precision = truePositives.length / (truePositives.length + falsePositives.length);
     const recall = truePositives.length / (truePositives.length + falseNegatives.length);
     const f1Score = 2 * (precision * recall) / (precision + recall);
     
-    console.log(`   - Precision: ${(precision * 100).toFixed(1)}%`);
-    console.log(`   - Recall: ${(recall * 100).toFixed(1)}%`);
-    console.log(`   - F1 Score: ${(f1Score * 100).toFixed(1)}%`);
+    // Accuracy analysis completed
   }
 
   /**
    * Demonstrate obscuring techniques
    */
   private async demonstrateObscuringTechniques(): Promise<void> {
-    console.log('\n🎭 Demonstrating PII Obscuring Techniques...');
-    console.log('=' .repeat(50));
-
     const sampleDetections: PIIDetection[] = [
       {
         type: 'credit_card',
@@ -262,11 +217,9 @@ export class MultiLayerExample {
     const techniques = piiObscurer.getAvailableTechniques();
     
     techniques.forEach(technique => {
-      console.log(`\n🔒 Technique: ${technique.toUpperCase()}`);
-      
       sampleDetections.forEach(detection => {
         const result = piiObscurer.obscurePII(detection, technique);
-        console.log(`   ${detection.type}: "${detection.text}" → "${result.obscuredText}"`);
+        // Process obscuring result
       });
     });
   }
@@ -275,52 +228,31 @@ export class MultiLayerExample {
    * Show performance analysis
    */
   private async showPerformanceAnalysis(): Promise<void> {
-    console.log('\n📈 Performance Analysis...');
-    console.log('=' .repeat(30));
-
     // Get system statistics
     const config = multiLayerDetector.getConfig();
     const cacheStats = multiLayerDetector.getCacheStats();
     const obscurerStats = piiObscurer.getTokenMapStats();
 
-    console.log('🏗️  System Configuration:');
-    console.log(`   - Max Total Detections: ${config.maxTotalDetections}`);
-    console.log(`   - Processing Timeout: ${config.processingTimeout}ms`);
-    console.log(`   - Enable Cross Validation: ${config.enableCrossValidation ? 'Yes' : 'No'}`);
-    console.log(`   - Enable Confidence Boost: ${config.enableConfidenceBoost ? 'Yes' : 'No'}`);
-
-    console.log('\n💾 Cache Statistics:');
-    console.log(`   - Detection Cache Size: ${cacheStats.size}`);
-    console.log(`   - Token Map Size: ${obscurerStats.size}`);
-    console.log(`   - Token Counter: ${obscurerStats.counter}`);
-
     // Performance recommendations
-    console.log('\n💡 Performance Recommendations:');
     if (cacheStats.size > 100) {
-      console.log('   - Consider clearing cache to free memory');
+      // Consider clearing cache to free memory
     }
     if (obscurerStats.size > 50) {
-      console.log('   - Consider clearing token map for security');
+      // Consider clearing token map for security
     }
     
-    console.log('   - Enable parallel processing for better performance');
-    console.log('   - Use appropriate confidence thresholds for your use case');
-    console.log('   - Consider disabling unused layers to reduce processing time');
+    // Performance analysis completed
   }
 
   /**
    * Run a quick performance test
    */
   public async runPerformanceTest(): Promise<void> {
-    console.log('\n⚡ Running Performance Test...');
-    console.log('=' .repeat(30));
-
     const testImage = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...'; // Mock base64
     const iterations = 3;
     const times: number[] = [];
 
     for (let i = 0; i < iterations; i++) {
-      console.log(`   Test ${i + 1}/${iterations}...`);
       const startTime = Date.now();
       
       try {
@@ -328,7 +260,7 @@ export class MultiLayerExample {
         const endTime = Date.now();
         times.push(endTime - startTime);
       } catch (error) {
-        console.error(`   Test ${i + 1} failed:`, error);
+        // Test failed
       }
     }
 
@@ -337,11 +269,7 @@ export class MultiLayerExample {
       const minTime = Math.min(...times);
       const maxTime = Math.max(...times);
       
-      console.log(`\n📊 Performance Results:`);
-      console.log(`   - Average Time: ${avgTime.toFixed(0)}ms`);
-      console.log(`   - Min Time: ${minTime}ms`);
-      console.log(`   - Max Time: ${maxTime}ms`);
-      console.log(`   - Variance: ${this.calculateVariance(times).toFixed(0)}ms`);
+      // Performance results calculated
     }
   }
 

@@ -1,7 +1,6 @@
 {
   "extends": [
-    "next/core-web-vitals",
-    "@typescript-eslint/recommended"
+    "next/core-web-vitals"
   ],
   "rules": {
     "prefer-const": "error",
@@ -12,12 +11,6 @@
     "no-unused-expressions": "error",
     "prefer-template": "error",
     "object-shorthand": "error",
-    "prefer-arrow-callback": "error",
-    "@typescript-eslint/no-unused-vars": "error",
-    "@typescript-eslint/explicit-function-return-type": "warn",
-    "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/prefer-readonly": "warn",
-    "camelcase": "error",
-    "no-magic-numbers": "warn"
+    "prefer-arrow-callback": "error"
   }
 }

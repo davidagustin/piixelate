@@ -49,7 +49,6 @@ export class PIIDetectionOrchestrator {
       }
       
       this.isInitialized = true;
-      console.log('PII Detection Orchestrator initialized successfully');
     } catch (error) {
       errorHandler.handleInitializationError('pii_orchestrator', error as Error);
       throw error;
@@ -75,34 +74,28 @@ export class PIIDetectionOrchestrator {
       this.validateImageInput(imageSource);
 
       // LAYER 0: Computer Vision detection (identify regions of interest)
-      console.log('Layer 0: Computer Vision detection...');
       const visionDetections = await this.performVisionDetection(imageSource);
       
       // Perform OCR
-      console.log('Performing OCR...');
       const ocrResult = await this.performOCR(imageSource);
       
       // LAYER 1: Pattern-based detection (fast and efficient)
-      console.log('Layer 1: Pattern-based detection...');
       const patternDetections = await this.performPatternDetection(ocrResult);
       
       // Combine vision and pattern detections
       const combinedDetections = this.combineDetections(visionDetections, patternDetections, ocrResult);
       
       // LAYER 2: Specialized detection
-      console.log('Layer 2: Specialized detection...');
       const specializedDetections = await this.performSpecializedDetection(ocrResult);
       combinedDetections.push(...specializedDetections);
       
       // Early return if no detections found
       if (combinedDetections.length === 0) {
-        console.log('No PII detected with computer vision and pattern matching');
         return this.createDetectionResult([], errors, startTime, ocrResult);
       }
       
       // LAYER 3: Enhanced LLM verification and detection (final layer)
       if (this.config.enableLLM) {
-        console.log(`Layer 3: Enhanced LLM detection and verification of ${combinedDetections.length} potential PII elements...`);
         const finalDetections = await this.performEnhancedLLMDetection(ocrResult.text, combinedDetections);
         return this.createDetectionResult(finalDetections, errors, startTime, ocrResult);
       } else {
@@ -221,11 +214,9 @@ export class PIIDetectionOrchestrator {
   ): Promise<PIIDetection[]> {
     try {
       // First, use enhanced LLM detector for new detections
-      console.log('Enhanced LLM detection...');
       const enhancedDetections = await enhancedLLMDetector.detectPII(fullText, this.buildContext(detections));
       
       // Then, use LLM verifier to verify existing detections
-      console.log('LLM verification...');
       const verifiedDetections = await llmVerifier.verifyWithLLM(fullText, detections);
       
       // Combine and deduplicate detections

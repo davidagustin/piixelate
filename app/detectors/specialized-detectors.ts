@@ -5,7 +5,7 @@
 
 import { PIIDetection, OCRResult, DetectionSource } from '../types/pii-types';
 import { PII_PATTERNS } from '../utils/pii-patterns';
-import { errorHandler, PIIErrorType } from '../utils/error-handler';
+import { errorHandler } from '../utils/error-handler';
 import { detectionConfig } from '../config/detection-config';
 
 /**
@@ -198,7 +198,7 @@ export class SpecializedDetector {
     const lineText = line.text;
     
     // Check for numerical patterns
-    PII_PATTERNS.numerical_data.forEach(pattern => {
+    PII_PATTERNS.numerical_data?.forEach(pattern => {
       const matches = lineText.match(pattern);
       
       if (matches) {
@@ -296,7 +296,7 @@ export class SpecializedDetector {
     const lineText = line.text;
     
     // Check for sensitive patterns (dates, birthdays, IDs)
-    PII_PATTERNS.sensitive_data.forEach((pattern: RegExp) => {
+    PII_PATTERNS.sensitive_data?.forEach((pattern: RegExp) => {
       const matches = lineText.match(pattern);
       
       if (matches) {
@@ -394,7 +394,7 @@ export class SpecializedDetector {
     const lineText = line.text;
     
     // Check for barcode patterns
-    PII_PATTERNS.barcode.forEach((pattern: RegExp) => {
+    PII_PATTERNS.barcode?.forEach((pattern: RegExp) => {
       const matches = lineText.match(pattern);
       
       if (matches) {
@@ -472,7 +472,7 @@ export class SpecializedDetector {
         // Enhanced date of birth detection
         if (this.isDateOfBirth(lineText)) {
           const detection = this.createSpecializedDetection(
-            line, lineIndex, 'date_of_birth', 0.9, ocrResult.text
+            line, lineIndex, 'date_of_birth', 0.9
           );
           if (detection) detections.push(detection);
         }
@@ -480,7 +480,7 @@ export class SpecializedDetector {
         // Enhanced address detection with context
         if (this.isAddress(lineText)) {
           const detection = this.createSpecializedDetection(
-            line, lineIndex, 'address', 0.85, ocrResult.text
+            line, lineIndex, 'address', 0.85
           );
           if (detection) detections.push(detection);
         }
@@ -488,7 +488,7 @@ export class SpecializedDetector {
         // Enhanced name detection with context
         if (this.isName(lineText)) {
           const detection = this.createSpecializedDetection(
-            line, lineIndex, 'name', 0.8, ocrResult.text
+            line, lineIndex, 'name', 0.8
           );
           if (detection) detections.push(detection);
         }
@@ -677,8 +677,7 @@ export class SpecializedDetector {
     line: OCRResult['lines'][0],
     lineIndex: number,
     type: string,
-    confidence: number,
-    fullText: string
+    confidence: number
   ): PIIDetection | null {
     try {
       return {
@@ -750,8 +749,8 @@ export class SpecializedDetector {
     };
     
     detections.forEach(detection => {
-      if (stats.hasOwnProperty(detection.type)) {
-        stats[detection.type]++;
+      if (detection.type && stats.hasOwnProperty(detection.type)) {
+        (stats as any)[detection.type]++;
       }
     });
     

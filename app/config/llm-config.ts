@@ -140,7 +140,6 @@ IMPORTANT: Only return valid JSON. No additional text or explanations outside th
  */
 export const callLLM = async (text: string, context?: string): Promise<LLMResponse> => {
   if (!llmConfig.enabled) {
-    console.warn('LLM detection is disabled');
     return {
       success: false,
       error: 'LLM detection is disabled',
@@ -151,7 +150,6 @@ export const callLLM = async (text: string, context?: string): Promise<LLMRespon
   }
 
   if (!text || text.trim().length === 0) {
-    console.warn('Empty text provided to LLM');
     return {
       success: false,
       error: 'Empty text provided',
@@ -194,7 +192,6 @@ export const callLLM = async (text: string, context?: string): Promise<LLMRespon
       };
     } catch (error) {
       lastError = error as Error;
-      console.warn(`LLM attempt ${attempt} failed:`, error);
       
       // Don't retry on certain errors
       if (error instanceof Error) {

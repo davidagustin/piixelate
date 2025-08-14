@@ -5,7 +5,7 @@
 
 import { PIIDetection, PIIType, OCRResult, PatternMatch, DetectionSource } from '../types/pii-types';
 import { PII_PATTERNS, getConfidenceScore } from '../utils/pii-patterns';
-import { errorHandler, PIIErrorType } from '../utils/error-handler';
+import { errorHandler } from '../utils/error-handler';
 import { detectionConfig } from '../config/detection-config';
 
 /**
@@ -26,10 +26,7 @@ export class PatternDetector {
    */
   public async detectPII(ocrResult: OCRResult): Promise<PIIDetection[]> {
     try {
-      // Limit logging to prevent console flooding
-      if (this.config.debugMode) {
-        console.log('Pattern detector - Lines:', ocrResult.lines.length);
-      }
+
       
       const allDetections: PIIDetection[] = [];
       let detectionCount = 0;
@@ -44,6 +41,11 @@ export class PatternDetector {
           break;
         }
         
+        // Skip if line is undefined
+        if (!currentLine) {
+          continue;
+        }
+        
         const lineDetections = this.processLine(currentLine, lineIndex, ocrResult.text);
         allDetections.push(...lineDetections);
         detectionCount += lineDetections.length;
@@ -53,12 +55,8 @@ export class PatternDetector {
       const uniqueDetections = this.removeDuplicates(allDetections);
       const filteredDetections = this.filterByConfidence(uniqueDetections);
 
-      if (this.config.debugMode) {
-        console.log('Final pattern detections:', filteredDetections.length);
-      }
       return filteredDetections;
     } catch (error) {
-      console.error('Pattern detection error:', error);
       errorHandler.handleProcessingError('pattern_detection', error as Error);
       return [];
     }
@@ -100,7 +98,7 @@ export class PatternDetector {
             
             // For credit cards, also create a document-level detection
             if (piiType === 'credit_card') {
-              const documentDetection = this.createDocumentLevelDetection(line, fullText);
+              const documentDetection = this.createDocumentLevelDetection(line);
               if (documentDetection) {
                 detections.push(documentDetection);
               }
@@ -120,8 +118,7 @@ export class PatternDetector {
    * @returns Document-level detection or null
    */
   private createDocumentLevelDetection(
-    line: OCRResult['lines'][0], 
-    fullText: string
+    line: OCRResult['lines'][0]
   ): PIIDetection | null {
     try {
       // Create a larger bounding box around the credit card
@@ -142,7 +139,6 @@ export class PatternDetector {
         source: 'pattern'
       };
     } catch (error) {
-      console.error('Error creating document-level detection:', error);
       return null;
     }
   }
@@ -204,8 +200,7 @@ export class PatternDetector {
 
       const boundingBox = this.calculateBoundingBox(
         match,
-        line,
-        lineIndex
+        line
       );
 
       return {
@@ -231,8 +226,7 @@ export class PatternDetector {
    */
   private calculateBoundingBox(
     match: PatternMatch,
-    line: OCRResult['lines'][0],
-    lineIndex: number
+    line: OCRResult['lines'][0]
   ): PIIDetection['boundingBox'] {
     const lineWidth = line.bbox.x1 - line.bbox.x0;
     const charWidth = lineWidth / line.text.length;

@@ -37,7 +37,6 @@ export class LLMVerifier {
       const cacheKey = this.generateCacheKey(fullText, patternDetections);
       const cachedResult = this.verificationCache.get(cacheKey);
       if (cachedResult && Date.now() - this.lastVerificationTime < 300000) { // 5 minute cache
-        console.log('Using cached LLM verification result');
         return cachedResult;
       }
 
@@ -165,7 +164,6 @@ IMPORTANT: Only return valid JSON. No additional text outside the JSON array.`;
     patternDetections: PIIDetection[]
   ): PIIDetection[] {
     if (!llmResponse.success || !llmResponse.data) {
-      console.warn('LLM verification failed:', llmResponse.error);
       return patternDetections;
     }
 

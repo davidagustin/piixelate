@@ -22,9 +22,7 @@ export class TesseractOCRProcessor implements OCRProcessor {
       // Dynamic import with error handling
       this.tesseractModule = await import('tesseract.js');
       this.isInitialized = true;
-      console.log('Tesseract.js OCR processor initialized');
     } catch (error) {
-      console.error('Failed to initialize Tesseract.js:', error);
       // Don't throw error, just mark as not initialized
       this.isInitialized = false;
     }
@@ -32,7 +30,6 @@ export class TesseractOCRProcessor implements OCRProcessor {
 
   async recognize(imageSource: string): Promise<OCRResult> {
     if (!this.isInitialized || !this.tesseractModule) {
-      console.warn('Tesseract.js not available, falling back to mock OCR');
       // Fallback to mock processor
       const mockProcessor = new MockOCRProcessor();
       return mockProcessor.recognize(imageSource);
@@ -44,9 +41,7 @@ export class TesseractOCRProcessor implements OCRProcessor {
       // Enhanced OCR configuration for better accuracy
       const ocrResult = await Tesseract.recognize(imageSource, 'eng', {
         logger: (progressMessage: any) => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('OCR Progress:', progressMessage);
-          }
+          // Progress logging disabled
         },
         // Enhanced OCR settings
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*()_+-=[]{}|;:,.<>?/\\ ',
@@ -78,8 +73,6 @@ export class TesseractOCRProcessor implements OCRProcessor {
         processingTime: Date.now(),
       };
     } catch (error) {
-      console.error('OCR Error:', error);
-      console.warn('Falling back to mock OCR due to Tesseract error');
       // Fallback to mock processor
       const mockProcessor = new MockOCRProcessor();
       return mockProcessor.recognize(imageSource);
@@ -92,7 +85,7 @@ export class TesseractOCRProcessor implements OCRProcessor {
  */
 export class MockOCRProcessor implements OCRProcessor {
   async initialize(): Promise<void> {
-    console.log('Mock OCR processor initialized');
+    // Mock OCR processor initialized
   }
 
   async recognize(imageSource: string): Promise<OCRResult> {

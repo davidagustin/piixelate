@@ -268,13 +268,10 @@ export default function PIIxelate() {
       }
       
       // Detect PII using the utility function
-      console.log('Starting PII detection...');
       const startTime = Date.now();
       const detectionResult = await detectPII(originalImageSrc);
       const endTime = Date.now();
       const processingTimeMs = endTime - startTime;
-      
-      console.log('Detection result:', detectionResult);
       setDetectedPII(detectionResult.detections);
       setProcessingDuration(processingTimeMs);
       
@@ -289,18 +286,15 @@ export default function PIIxelate() {
       setDetectionStatistics(stats);
       
       if (detectionResult.detections.length > 0) {
-        console.log('PII detected, pixelating image...');
         // Pixelate the image
         const pixelatedImage = await pixelateImage(originalImageSrc, detectionResult.detections);
         setProcessedImageSrc(pixelatedImage);
         setSuccessMessage(`Found and pixelated ${detectionResult.detections.length} PII elements using ${isLLMEnabled ? 'three-layer' : 'pattern'} detection`);
       } else {
-        console.log('No PII detected');
         setSuccessMessage(`No PII detected in the image using ${isLLMEnabled ? 'three-layer' : 'pattern'} detection`);
         setProcessedImageSrc(originalImageSrc);
       }
     } catch (err) {
-      console.error('Processing error:', err);
       setErrorMessage(`Failed to process image: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsProcessingImage(false);

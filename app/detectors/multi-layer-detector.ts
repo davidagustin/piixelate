@@ -12,7 +12,7 @@
  * Layer 6: PII Obscuring (redaction and anonymization)
  */
 
-import { PIIDetection, DetectionResult, DetectionStats, OCRResult } from '../types/pii-types';
+import { PIIDetection, DetectionResult, OCRResult, DetectionSource } from '../types/pii-types';
 import { EnhancedLLMDetector } from './enhanced-llm-detector';
 import { PatternDetector } from './pattern-detector';
 import { VisionDetector } from './vision-detector';
@@ -176,8 +176,6 @@ export class MultiLayerDetector {
     }
 
     try {
-      console.log('Initializing Multi-Layer PII Detection System...');
-      
       // Initialize vision detector
       if (this.config.layers.vision.enabled) {
         await this.visionDetector.initialize();
@@ -196,7 +194,6 @@ export class MultiLayerDetector {
       }
 
       this.isInitialized = true;
-      console.log('Multi-Layer PII Detection System initialized successfully');
     } catch (error) {
       errorHandler.handleInitializationError('multi_layer_detector', error as Error);
       throw error;
@@ -223,15 +220,11 @@ export class MultiLayerDetector {
       const cacheKey = this.generateCacheKey(imageSrc);
       const cachedResult = this.detectionCache.get(cacheKey);
       if (cachedResult && Date.now() - startTime < 300000) { // 5 minute cache
-        console.log('Using cached multi-layer detection result');
         return cachedResult;
       }
 
-      console.log('Starting multi-layer PII detection...');
-
       // LAYER 0: Computer Vision Detection
       if (this.config.layers.vision.enabled) {
-        console.log('Layer 0: Computer Vision detection...');
         const visionResult = await this.executeLayer('vision', () => 
           this.performVisionDetection(imageSrc)
         );
@@ -239,12 +232,10 @@ export class MultiLayerDetector {
       }
 
       // Perform OCR (required for most layers)
-      console.log('Performing OCR...');
       const ocrResult = await this.performOCR(imageSrc);
 
       // LAYER 1: Pattern Matching
       if (this.config.layers.pattern.enabled) {
-        console.log('Layer 1: Pattern-based detection...');
         const patternResult = await this.executeLayer('pattern', () =>
           this.performPatternDetection(ocrResult)
         );
@@ -253,7 +244,6 @@ export class MultiLayerDetector {
 
       // LAYER 2: Specialized Detection
       if (this.config.layers.specialized.enabled) {
-        console.log('Layer 2: Specialized detection...');
         const specializedResult = await this.executeLayer('specialized', () =>
           this.performSpecializedDetection(ocrResult)
         );
@@ -262,7 +252,6 @@ export class MultiLayerDetector {
 
       // LAYER 3: Enhanced LLM Detection
       if (this.config.layers.enhancedLLM.enabled) {
-        console.log('Layer 3: Enhanced LLM detection...');
         const llmResult = await this.executeLayer('enhancedLLM', () =>
           this.performEnhancedLLMDetection(ocrResult.text)
         );
@@ -274,7 +263,6 @@ export class MultiLayerDetector {
 
       // LAYER 4: LLM Verification
       if (this.config.layers.verification.enabled && combinedDetections.length > 0) {
-        console.log('Layer 4: LLM verification...');
         const verificationResult = await this.executeLayer('verification', () =>
           this.performLLMVerification(ocrResult.text, combinedDetections)
         );
@@ -282,24 +270,17 @@ export class MultiLayerDetector {
       }
 
       // LAYER 5: Ensemble Analysis
-      console.log('Layer 5: Ensemble analysis...');
-      const ensembleResult = await this.executeLayer('ensemble', () =>
-        this.performEnsembleAnalysis(layerResults, combinedDetections)
-      );
+      const ensembleResult = await this.performEnsembleAnalysis(layerResults, combinedDetections);
 
       // LAYER 6: PII Obscuring
-      console.log('Layer 6: PII obscuring...');
-      const obscuringResult = await this.executeLayer('obscuring', () =>
-        this.performPIIObscuring(ensembleResult.finalDetections)
-      );
+      const obscuringResult = await this.performPIIObscuring(ensembleResult.finalDetections);
 
       // Create final result
       const finalResult = this.createDetectionResult(
         obscuringResult.detections,
         errors,
         startTime,
-        ocrResult,
-        layerResults
+        ocrResult
       );
 
       // Cache the result
@@ -311,7 +292,7 @@ export class MultiLayerDetector {
       const piiError = errorHandler.handleProcessingError('multi_layer_detection', error as Error);
       errors.push(piiError);
       
-      return this.createDetectionResult([], errors, startTime, { text: '', lines: [] }, layerResults);
+      return this.createDetectionResult([], errors, startTime, { text: '', lines: [] });
     }
   }
 
@@ -339,7 +320,7 @@ export class MultiLayerDetector {
         detections,
         processingTime: Date.now() - startTime,
         success: true,
-        confidence: this.calculateAverageConfidence(detections),
+        confidence: detections.length === 0 ? 0 : detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length,
       };
     } catch (error) {
       return {
@@ -415,7 +396,7 @@ export class MultiLayerDetector {
    * @returns Verified detections
    */
   private async performLLMVerification(text: string, detections: PIIDetection[]): Promise<PIIDetection[]> {
-    return await this.llmVerifier.verifyDetections(text, detections);
+    return await this.llmVerifier.verifyWithLLM(text, detections);
   }
 
   /**
@@ -450,7 +431,7 @@ export class MultiLayerDetector {
     let totalConfidence = 0;
     let crossValidationCount = 0;
 
-    detectionMap.forEach((detections, key) => {
+    detectionMap.forEach((detections) => {
       if (detections.length >= 2) { // Require at least 2 layers to agree
         const avgConfidence = detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length;
         const bestDetection = detections.reduce((best, current) => 
@@ -504,7 +485,7 @@ export class MultiLayerDetector {
       detections: obscuredDetections,
       processingTime: 0,
       success: true,
-      confidence: this.calculateAverageConfidence(obscuredDetections),
+      confidence: obscuredDetections.length === 0 ? 0 : obscuredDetections.reduce((sum, d) => sum + d.confidence, 0) / obscuredDetections.length,
     };
   }
 
@@ -545,15 +526,7 @@ export class MultiLayerDetector {
     });
   }
 
-  /**
-   * Calculate average confidence
-   * @param detections - Array of detections
-   * @returns Average confidence
-   */
-  private calculateAverageConfidence(detections: PIIDetection[]): number {
-    if (detections.length === 0) return 0;
-    return detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length;
-  }
+
 
   /**
    * Execute function with timeout
@@ -586,45 +559,49 @@ export class MultiLayerDetector {
     return hash.toString();
   }
 
+
+
+  /**
+   * Get detection sources
+   * @param detections - Detections to analyze
+   * @returns Record of detection counts by source
+   */
+  private getDetectionSources(detections: PIIDetection[]): Record<DetectionSource, number> {
+    const sources: Record<DetectionSource, number> = {} as Record<DetectionSource, number>;
+    detections.forEach(detection => {
+      if (detection.source) {
+        sources[detection.source] = (sources[detection.source] || 0) + 1;
+      }
+    });
+    return sources;
+  }
+
   /**
    * Create detection result
    * @param detections - Final detections
    * @param errors - Processing errors
    * @param startTime - Start time
    * @param ocrResult - OCR result
-   * @param layerResults - Layer results
    * @returns Detection result
    */
   private createDetectionResult(
     detections: PIIDetection[],
     errors: any[],
     startTime: number,
-    ocrResult: OCRResult,
-    layerResults: LayerResult[] = []
+    ocrResult: OCRResult
   ): DetectionResult {
     const processingTime = Date.now() - startTime;
-    
-    const stats: DetectionStats = {
-      totalDetections: detections.length,
-      processingTime,
-      layerResults: layerResults.map(result => ({
-        layer: result.layer,
-        detections: result.detections.length,
-        processingTime: result.processingTime,
-        success: result.success,
-        confidence: result.confidence,
-      })),
-      ocrStats: {
-        textLength: ocrResult.text.length,
-        lineCount: ocrResult.lines.length,
-      },
-    };
 
     return {
-      detections,
-      stats,
-      errors,
       success: errors.length === 0,
+      detections,
+      errors,
+      processingTime,
+      metadata: {
+        totalLines: ocrResult.lines.length,
+        totalCharacters: ocrResult.text.length,
+        detectionSources: this.getDetectionSources(detections),
+      },
     };
   }
 

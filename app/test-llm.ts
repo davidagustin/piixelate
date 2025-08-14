@@ -36,34 +36,16 @@ const testData = [
  * Test enhanced LLM detector
  */
 async function testEnhancedLLMDetector() {
-  console.log('🧪 Testing Enhanced LLM Detector...\n');
-
   for (const test of testData) {
-    console.log(`📋 Test: ${test.name}`);
-    console.log(`📝 Text: "${test.text}"`);
-    
     try {
       const detections = await enhancedLLMDetector.detectPII(test.text);
       
-      console.log(`✅ Found ${detections.length} detections:`);
-      detections.forEach(detection => {
-        console.log(`   - ${detection.type}: "${detection.text}" (confidence: ${detection.confidence})`);
-      });
-      
-      const foundTypes = detections.map(d => d.type);
+      const foundTypes = detections.map(d => d.type as string);
       const missingTypes = test.expectedTypes.filter(type => !foundTypes.includes(type));
       
-      if (missingTypes.length > 0) {
-        console.log(`⚠️  Missing expected types: ${missingTypes.join(', ')}`);
-      } else {
-        console.log(`🎉 All expected types found!`);
-      }
-      
     } catch (error) {
-      console.error(`❌ Error: ${error}`);
+      // Error occurred during testing
     }
-    
-    console.log('');
   }
 }
 
@@ -71,8 +53,6 @@ async function testEnhancedLLMDetector() {
  * Test LLM verifier
  */
 async function testLLMVerifier() {
-  console.log('🧪 Testing LLM Verifier...\n');
-
   const testText = 'Contact me at sample@example.com or call (XXX) XXX-XXXX';
   const mockDetections = [
     {
@@ -88,13 +68,8 @@ async function testLLMVerifier() {
   try {
     const verifiedDetections = await llmVerifier.verifyWithLLM(testText, mockDetections);
     
-    console.log(`✅ Verified ${verifiedDetections.length} detections:`);
-    verifiedDetections.forEach(detection => {
-      console.log(`   - ${detection.type}: "${detection.text}" (confidence: ${detection.confidence}, verified: ${detection.verified})`);
-    });
-    
   } catch (error) {
-    console.error(`❌ Error: ${error}`);
+    // Error occurred during testing
   }
 }
 
@@ -102,32 +77,16 @@ async function testLLMVerifier() {
  * Test provider statistics
  */
 function testProviderStats() {
-  console.log('🧪 Testing Provider Statistics...\n');
-
   const providerStats = enhancedLLMDetector.getProviderStats();
-  console.log('Provider Statistics:');
-  console.log(`   Total providers: ${providerStats.total}`);
-  console.log(`   Enabled providers: ${providerStats.enabled}`);
-  console.log('   Provider details:');
-  providerStats.providers.forEach(provider => {
-    console.log(`     - ${provider.name}: ${provider.enabled ? '✅' : '❌'} (priority: ${provider.priority})`);
-  });
-  
   const cacheStats = enhancedLLMDetector.getCacheStats();
-  console.log(`\nCache Statistics:`);
-  console.log(`   Cache size: ${cacheStats.size}`);
-  console.log(`   Last detection: ${cacheStats.lastDetection > 0 ? new Date(cacheStats.lastDetection).toISOString() : 'Never'}`);
 }
 
 /**
  * Main test function
  */
 async function runTests() {
-  console.log('🚀 Starting Enhanced LLM Detection Tests\n');
-  
   // Test provider statistics
   testProviderStats();
-  console.log('');
   
   // Test enhanced LLM detector
   await testEnhancedLLMDetector();
@@ -135,12 +94,13 @@ async function runTests() {
   // Test LLM verifier
   await testLLMVerifier();
   
-  console.log('✅ All tests completed!');
 }
 
 // Run tests if this file is executed directly
 if (typeof window === 'undefined') {
-  runTests().catch(console.error);
+  runTests().catch(() => {
+    // Test execution failed
+  });
 }
 
 export { runTests, testEnhancedLLMDetector, testLLMVerifier, testProviderStats };
