@@ -441,8 +441,9 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   
   // Enhanced credit card detection with Luhn algorithm
   const creditCardPatterns = [
-    /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g,
-    /\b\d{4} \d{4} \d{4} \d{4}\b/g,
+    /\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}/g,
+    /\d{4} \d{4} \d{4} \d{4}/g,
+    /\d{4}-\d{4}-\d{4}-\d{4}/g,
   ];
   
   creditCardPatterns.forEach(pattern => {
@@ -465,9 +466,10 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   
   // Enhanced phone number detection
   const phonePatterns = [
-    /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g,
-    /\b\(\d{3}\)\s*\d{3}[-.]?\d{4}\b/g,
-    /\b\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b/g,
+    /\d{3}[-.]?\d{3}[-.]?\d{4}/g,
+    /\(\d{3}\)\s*\d{3}[-.]?\d{4}/g,
+    /\(\d{3}\)\s*\d{3}-\d{4}/g,
+    /\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g,
   ];
   
   phonePatterns.forEach(pattern => {
@@ -486,7 +488,7 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   });
   
   // Enhanced email detection
-  const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+  const emailPattern = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}/g;
   const emailMatches = enhancedText.matchAll(emailPattern);
   for (const match of emailMatches) {
     detections.push({
@@ -501,7 +503,7 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   }
   
   // SSN detection
-  const ssnPattern = /\b\d{3}-\d{2}-\d{4}\b/g;
+  const ssnPattern = /\d{3}-\d{2}-\d{4}/g;
   const ssnMatches = enhancedText.matchAll(ssnPattern);
   for (const match of ssnMatches) {
     detections.push({
@@ -515,8 +517,30 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
     });
   }
   
+  // Driver's license detection
+  const driverLicensePatterns = [
+    /\d{2}-\d{2}-\d{5}/g,  // Format like 01-47-87441
+    /[A-Z]{2}\s*\d{6,8}/g,  // State code + numbers
+    /Driver\s+License[:\s]*(\d{2}-\d{2}-\d{5})/gi,  // "Driver License: 01-47-87441"
+  ];
+  
+  driverLicensePatterns.forEach(pattern => {
+    const matches = enhancedText.matchAll(pattern);
+    for (const match of matches) {
+      detections.push({
+        type: 'drivers_license',
+        text: match[0],
+        confidence: 0.95,
+        line: getLineNumber(enhancedText, match.index!),
+                boundingBox: { x: 0, y: 0, width: 150, height: 25 },
+        verified: true,
+        reasoning: 'Driver license number pattern detected'
+      });
+    }
+  });
+  
   // Address detection
-  const addressPattern = /\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr)\b/gi;
+  const addressPattern = /\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr)/gi;
   const addressMatches = enhancedText.matchAll(addressPattern);
   for (const match of addressMatches) {
     detections.push({
@@ -531,12 +555,12 @@ const callMockLLM = async (text: string, context?: string): Promise<LLMResponse>
   }
   
   // Name detection (basic)
-  const namePattern = /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g;
+  const namePattern = /[A-Z][a-z]+\s+[A-Z][a-z]+/g;
   const nameMatches = enhancedText.matchAll(namePattern);
   for (const match of nameMatches) {
     // Avoid common false positives
     const name = match[0];
-    const commonWords = ['The', 'This', 'That', 'With', 'From', 'Into', 'During', 'Including', 'Until', 'Against', 'Among', 'Throughout', 'Describing', 'Following', 'According', 'Through', 'Between', 'Within', 'Without', 'Before', 'After', 'Above', 'Below', 'Since', 'Under', 'Over', 'About', 'Around', 'Along', 'Across', 'Behind', 'Beyond', 'Inside', 'Outside', 'Near', 'Far', 'Close', 'Open', 'High', 'Low', 'Good', 'Bad', 'New', 'Old', 'Big', 'Small', 'Long', 'Short', 'Fast', 'Slow', 'Easy', 'Hard', 'Early', 'Late', 'First', 'Last', 'Next', 'Previous', 'Current', 'Recent', 'Future', 'Past', 'Present', 'Modern', 'Ancient', 'Young', 'Adult', 'Child', 'Baby', 'Senior', 'Junior', 'Major', 'Minor', 'Primary', 'Secondary', 'Main', 'Side', 'Front', 'Back', 'Top', 'Bottom', 'Left', 'Right', 'Center', 'Middle', 'Corner', 'Edge', 'End', 'Start', 'Begin', 'Finish', 'Complete', 'Partial', 'Full', 'Empty', 'Half', 'Quarter', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+    const commonWords = ['The', 'This', 'That', 'With', 'From', 'Into', 'During', 'Including', 'Until', 'Against', 'Among', 'Throughout', 'Describing', 'Following', 'According', 'Through', 'Between', 'Within', 'Without', 'Before', 'After', 'Above', 'Below', 'Since', 'Under', 'Over', 'About', 'Around', 'Along', 'Across', 'Behind', 'Beyond', 'Inside', 'Outside', 'Near', 'Far', 'Close', 'Open', 'High', 'Low', 'Good', 'Bad', 'New', 'Old', 'Big', 'Small', 'Long', 'Short', 'Fast', 'Slow', 'Easy', 'Hard', 'Early', 'Late', 'First', 'Last', 'Next', 'Previous', 'Current', 'Recent', 'Future', 'Past', 'Present', 'Modern', 'Ancient', 'Young', 'Adult', 'Child', 'Baby', 'Senior', 'Junior', 'Major', 'Minor', 'Primary', 'Secondary', 'Main', 'Side', 'Front', 'Back', 'Top', 'Bottom', 'Left', 'Right', 'Center', 'Middle', 'Corner', 'Edge', 'End', 'Start', 'Begin', 'Finish', 'Complete', 'Partial', 'Full', 'Empty', 'Half', 'Quarter', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth', 'Personally', 'Identifiable', 'Information', 'Detection', 'System', 'Expert', 'Enterprise', 'Grade', 'Accuracy', 'Analyze', 'Identify', 'Sensitive', 'Protection', 'Categories', 'Financial', 'Personal', 'Contact', 'Medical', 'Technical', 'Documents', 'Analysis', 'Requirements', 'Examine', 'Carefully', 'Consider', 'Context', 'Avoid', 'False', 'Positives', 'Provide', 'Accurate', 'Confidence', 'Scores', 'Include', 'Bounding', 'Estimates', 'Reasoning', 'Complex', 'Return', 'Valid', 'Array', 'Structure', 'Important', 'Additional', 'Outside', 'Driver', 'License', 'Hawaii', 'Sample', 'Street', 'Avenue', 'Road', 'Boulevard', 'Lane', 'Drive'];
     
     if (!commonWords.some(word => name.includes(word))) {
       detections.push({

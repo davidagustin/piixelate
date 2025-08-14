@@ -187,17 +187,157 @@ npm run format       # Format code with Prettier
 ```
 
 ### **Testing**
+
+PIIxelate includes a comprehensive test suite covering all detection modules and scenarios.
+
+#### **Run All Tests**
 ```bash
-# Run tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run specific test suites
-npm run test:detection
-npm run test:ui
+npx tsx app/test-all.ts
 ```
+
+#### **Run Specific Test Modules**
+```bash
+# Enhanced LLM Detector
+npx tsx app/test-all.ts llm
+
+# Pattern Detector
+npx tsx app/test-all.ts pattern
+
+# Multi-Layer Detector
+npx tsx app/test-all.ts multi-layer
+
+# Specialized Detectors
+npx tsx app/test-all.ts specialized
+```
+
+#### **Run Individual Test Files**
+```bash
+# Enhanced LLM Detector
+npx tsx app/test-llm.ts
+
+# Pattern Detector
+npx tsx app/test-pattern-detector.ts
+
+# Multi-Layer Detector
+npx tsx app/test-multi-layer-detector.ts
+
+# Specialized Detectors
+npx tsx app/test-specialized-detectors.ts
+```
+
+#### **Test Coverage**
+
+The test suite covers **30+ PII types** across all detection scenarios:
+
+**Financial Information**
+- Credit card numbers (with Luhn algorithm validation)
+- Bank account numbers
+- Tax identification numbers
+- Insurance policy numbers
+
+**Personal Identification**
+- Driver's license numbers
+- Passport numbers
+- Government ID numbers
+- Employee/Student ID numbers
+
+**Contact Information**
+- Phone numbers (multiple formats)
+- Email addresses
+- Physical addresses
+- Social media handles
+
+**Medical & Health**
+- Patient ID numbers
+- Prescription information
+- Health insurance numbers
+- Medical record numbers
+
+**Technical Identifiers**
+- IP addresses (IPv4 and IPv6)
+- MAC addresses
+- Vehicle VIN numbers
+- Serial numbers
+
+**Sensitive Documents**
+- Document IDs
+- Case numbers
+- Reference numbers
+- Transaction IDs
+
+#### **Test Results Interpretation**
+
+**Success Indicators**
+- ✅ All expected PII types detected
+- ✅ High confidence scores (>80%)
+- ✅ Fast processing times (<500ms for simple cases)
+- ✅ No false positives in test scenarios
+
+**Warning Indicators**
+- ⚠️ Missing expected PII types
+- ⚠️ Low confidence scores (<60%)
+- ⚠️ Slow processing times (>1000ms)
+- ⚠️ False positive detections
+
+**Error Indicators**
+- ❌ Test execution failures
+- ❌ Module initialization errors
+- ❌ Configuration errors
+- ❌ API/Service unavailability
+
+#### **Test Configuration**
+
+Tests use the following configuration:
+- **LLM Provider**: Mock (for testing without API keys)
+- **Confidence Threshold**: 0.6 (60%)
+- **Processing Timeout**: 30 seconds
+- **Max Detections**: 100 per document
+- **Debug Mode**: Enabled for detailed logging
+
+#### **Troubleshooting Tests**
+
+**Common Issues**
+1. **Module Import Errors**
+   - Ensure all dependencies are installed: `npm install`
+   - Check TypeScript compilation: `npx tsc --noEmit`
+
+2. **Configuration Errors**
+   - Verify environment variables are set correctly
+   - Check detection configuration in `app/config/detection-config.ts`
+
+3. **Performance Issues**
+   - Monitor system resources during test execution
+   - Check for memory leaks in long-running tests
+   - Verify network connectivity for external services
+
+4. **False Positives/Negatives**
+   - Review pattern definitions in `app/utils/pii-patterns.ts`
+   - Adjust confidence thresholds in configuration
+   - Update test data to match expected patterns
+
+**Debug Mode**
+```bash
+export NODE_ENV=development
+export NEXT_PUBLIC_LOG_LEVEL=debug
+```
+
+#### **Test Maintenance**
+
+- Run the full test suite before any major changes
+- Update test data when PII patterns change
+- Monitor test performance and optimize slow tests
+- Keep test coverage above 90% for critical modules
+- Document any new test scenarios or edge cases
+
+#### **Adding New Tests**
+
+When adding new tests:
+
+1. Follow the existing test structure and naming conventions
+2. Include comprehensive test cases for new PII types
+3. Add performance benchmarks for new detection methods
+4. Update this README with new test coverage information
+5. Ensure all tests pass before submitting changes
 
 ## 🤝 **Contributing**
 

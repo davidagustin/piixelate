@@ -40,6 +40,7 @@ export default function PIIxelate() {
   
   // Configuration
   const [isLLMEnabled, setIsLLMEnabled] = useState(true);
+  const [useBlackSquares, setUseBlackSquares] = useState(false);
  
    
   const webcamRef = useRef<Webcam>(null);
@@ -152,7 +153,7 @@ export default function PIIxelate() {
 
 
 
-  const pixelateRegions = (canvas: HTMLCanvasElement, detections: PIIDetection[], pixelSize: number) => {
+  const pixelateRegions = (canvas: HTMLCanvasElement, detections: PIIDetection[], pixelSize: number, useBlackSquares: boolean = false) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
@@ -169,32 +170,46 @@ export default function PIIxelate() {
         height: Math.min(canvas.height - boundingBox.y, boundingBox.height + 10)
       };
       
-      // Get image data for the region
-      const imageData = ctx.getImageData(expandedBox.x, expandedBox.y, expandedBox.width, expandedBox.height);
-      const data = imageData.data;
-      
-      // Apply pixelation
-      for (let y = 0; y < expandedBox.height; y += pixelSize) {
-        for (let x = 0; x < expandedBox.width; x += pixelSize) {
-          const index = (y * expandedBox.width + x) * 4;
-          const r = data[index] ?? 0;
-          const g = data[index + 1] ?? 0;
-          const b = data[index + 2] ?? 0;
-          
-          // Fill the pixel block with the average color
-          for (let py = 0; py < pixelSize && y + py < expandedBox.height; py++) {
-            for (let px = 0; px < pixelSize && x + px < expandedBox.width; px++) {
-              const pIndex = ((y + py) * expandedBox.width + (x + px)) * 4;
-              data[pIndex] = r;
-              data[pIndex + 1] = g;
-              data[pIndex + 2] = b;
+      if (useBlackSquares) {
+        // Apply solid black squares for maximum privacy
+        ctx.fillStyle = 'rgba(0, 0, 0, 1.0)';
+        ctx.fillRect(expandedBox.x, expandedBox.y, expandedBox.width, expandedBox.height);
+        
+        // Add a subtle border to make it clear it's a redaction
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(expandedBox.x, expandedBox.y, expandedBox.width, expandedBox.height);
+      } else {
+        // Get image data for the region
+        const imageData = ctx.getImageData(expandedBox.x, expandedBox.y, expandedBox.width, expandedBox.height);
+        const data = imageData.data;
+        
+        // Apply much stronger pixelation
+        const strongPixelSize = Math.max(pixelSize, 40); // Much larger pixels for stronger effect
+        
+        // Apply pixelation
+        for (let y = 0; y < expandedBox.height; y += strongPixelSize) {
+          for (let x = 0; x < expandedBox.width; x += strongPixelSize) {
+            const index = (y * expandedBox.width + x) * 4;
+            const r = data[index] ?? 0;
+            const g = data[index + 1] ?? 0;
+            const b = data[index + 2] ?? 0;
+            
+            // Fill the pixel block with the average color
+            for (let py = 0; py < strongPixelSize && y + py < expandedBox.height; py++) {
+              for (let px = 0; px < strongPixelSize && x + px < expandedBox.width; px++) {
+                const pIndex = ((y + py) * expandedBox.width + (x + px)) * 4;
+                data[pIndex] = r;
+                data[pIndex + 1] = g;
+                data[pIndex + 2] = b;
+              }
             }
           }
         }
+        
+        // Put the pixelated image data back
+        ctx.putImageData(imageData, expandedBox.x, expandedBox.y);
       }
-      
-      // Put the pixelated image data back
-      ctx.putImageData(imageData, expandedBox.x, expandedBox.y);
     });
   };
 
@@ -222,7 +237,7 @@ export default function PIIxelate() {
         ctx.drawImage(img, 0, 0);
         
         // Apply pixelation to detected regions
-        pixelateRegions(canvas, detections, 8);
+        pixelateRegions(canvas, detections, 8, useBlackSquares);
         
         // Return high-quality image data
         const processedImageData = canvas.toDataURL('image/jpeg', 0.95);
@@ -439,6 +454,95 @@ export default function PIIxelate() {
                 </span>
               )}
             </h3>
+            
+            {/* Pixelation Method Selection */}
+            <div className="mb-4 sm:mb-6">
+              <h4 className="text-sm sm:text-base font-semibold text-slate-800 mb-3 flex items-center space-x-2">
+                <EyeOff className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <span>Pixelation Method:</span>
+                {useBlackSquares ? (
+                  <span className="px-2 py-1 bg-red-500 text-white rounded-full text-xs font-bold ml-2">
+                    Black Squares
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 bg-blue-500 text-white rounded-full text-xs font-bold ml-2">
+                    Strong Pixelation
+                  </span>
+                )}
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <label className="relative cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pixelation"
+                    checked={!useBlackSquares}
+                    onChange={() => setUseBlackSquares(false)}
+                    className="sr-only"
+                  />
+                  <div className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 min-h-[80px] sm:min-h-[100px] ${
+                    !useBlackSquares
+                      ? 'border-blue-500 bg-blue-50 shadow-lg ring-4 ring-blue-300'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}>
+                    <div className="flex items-start space-x-3 h-full">
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all duration-200 ${
+                        !useBlackSquares ? 'border-blue-500 bg-blue-500 scale-125 shadow-xl' : 'border-slate-300'
+                      }`}>
+                        {!useBlackSquares && <div className="w-4 h-4 bg-white rounded-full shadow-lg"></div>}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-800 text-sm sm:text-base">
+                          Strong Pixelation
+                        </p>
+                        <p className="text-xs sm:text-sm text-secondary mt-1" style={{color: '#475569'}}>
+                          Enhanced pixelation with large blocks
+                        </p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                            Maximum Privacy
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+                <label className="relative cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pixelation"
+                    checked={useBlackSquares}
+                    onChange={() => setUseBlackSquares(true)}
+                    className="sr-only"
+                  />
+                  <div className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 min-h-[80px] sm:min-h-[100px] ${
+                    useBlackSquares
+                      ? 'border-red-500 bg-red-50 shadow-lg ring-4 ring-red-300'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}>
+                    <div className="flex items-start space-x-3 h-full">
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all duration-200 ${
+                        useBlackSquares ? 'border-red-500 bg-red-500 scale-125 shadow-xl' : 'border-slate-300'
+                      }`}>
+                        {useBlackSquares && <div className="w-4 h-4 bg-white rounded-full shadow-lg"></div>}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-800 text-sm sm:text-base">
+                          Black Squares
+                        </p>
+                        <p className="text-xs sm:text-sm text-secondary mt-1" style={{color: '#475569'}}>
+                          Solid black rectangles for complete redaction
+                        </p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
+                            Complete Redaction
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <label className="relative cursor-pointer">
                 <input

@@ -11,7 +11,8 @@ import { PIIDetection } from '../types/pii-types';
 export function pixelateRegions(
   canvas: HTMLCanvasElement,
   detections: PIIDetection[],
-  pixelSize: number = 8
+  pixelSize: number = 8,
+  useBlackSquares: boolean = false
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -27,57 +28,92 @@ export function pixelateRegions(
     const expandedWidth = Math.min(canvas.width - expandedX, width + 10);
     const expandedHeight = Math.min(canvas.height - expandedY, height + 10);
     
-    // Get the image data for the expanded region
-    const imageData = ctx.getImageData(expandedX, expandedY, expandedWidth, expandedHeight);
-    const data = imageData.data;
-    
-    // Apply stronger pixelation for numerical and text data
-    let strongPixelSize = Math.max(pixelSize, 20); // Much larger base pixels for stronger effect
-    
-    // Extra strong protection for numerical data
-    if (detection.type === 'numerical_data') {
-      strongPixelSize = Math.max(strongPixelSize, 25); // Much larger pixels for numbers
-    }
-    
-    // Strong protection for sensitive data (dates, birthdays, IDs)
-    if (detection.type === 'sensitive_data') {
-      strongPixelSize = Math.max(strongPixelSize, 22); // Large pixels for sensitive data
-    }
-    
-    // Strong protection for barcodes
-    if (detection.type === 'barcode') {
-      strongPixelSize = Math.max(strongPixelSize, 25); // Large pixels for barcodes
-    }
-    
-    // Strong protection for credit cards
-    if (detection.type === 'credit_card') {
-      strongPixelSize = Math.max(strongPixelSize, 30); // Very large pixels for credit cards
-    }
-    
-    // Strong protection for driver's licenses
-    if (detection.type === 'drivers_license') {
-      strongPixelSize = Math.max(strongPixelSize, 28); // Large pixels for driver's licenses
-    }
-    
-    // Strong protection for ID cards
-    if (detection.type === 'id_card') {
-      strongPixelSize = Math.max(strongPixelSize, 26); // Large pixels for ID cards
-    }
-    
-    // Apply pixelation
-    applyPixelation(data, expandedWidth, expandedHeight, strongPixelSize);
-    
-    // Put the pixelated image data back
-    ctx.putImageData(imageData, expandedX, expandedY);
-    
-    // Apply multiple blur effects for maximum privacy
-    applyBlurEffects(ctx, expandedX, expandedY, expandedWidth, expandedHeight, detection.type);
-    
-    // Apply additional blackout protection for highly sensitive data
-    if (detection.type === 'credit_card' || detection.type === 'drivers_license' || detection.type === 'id_card' || detection.type === 'ssn') {
-      applyBlackoutProtection(ctx, expandedX, expandedY, expandedWidth, expandedHeight);
+    if (useBlackSquares) {
+      // Apply solid black squares for maximum privacy
+      applyBlackSquares(ctx, expandedX, expandedY, expandedWidth, expandedHeight);
+    } else {
+      // Get the image data for the expanded region
+      const imageData = ctx.getImageData(expandedX, expandedY, expandedWidth, expandedHeight);
+      const data = imageData.data;
+      
+      // Apply much stronger pixelation for all sensitive data
+      let strongPixelSize = Math.max(pixelSize, 40); // Much larger base pixels for stronger effect
+      
+      // Extra strong protection for numerical data
+      if (detection.type === 'numerical_data') {
+        strongPixelSize = Math.max(strongPixelSize, 50); // Much larger pixels for numbers
+      }
+      
+      // Strong protection for sensitive data (dates, birthdays, IDs)
+      if (detection.type === 'sensitive_data') {
+        strongPixelSize = Math.max(strongPixelSize, 45); // Large pixels for sensitive data
+      }
+      
+      // Strong protection for barcodes
+      if (detection.type === 'barcode') {
+        strongPixelSize = Math.max(strongPixelSize, 60); // Very large pixels for barcodes
+      }
+      
+      // Strong protection for credit cards
+      if (detection.type === 'credit_card') {
+        strongPixelSize = Math.max(strongPixelSize, 70); // Very large pixels for credit cards
+      }
+      
+      // Strong protection for driver's licenses
+      if (detection.type === 'drivers_license') {
+        strongPixelSize = Math.max(strongPixelSize, 65); // Very large pixels for driver's licenses
+      }
+      
+      // Strong protection for ID cards
+      if (detection.type === 'id_card') {
+        strongPixelSize = Math.max(strongPixelSize, 60); // Large pixels for ID cards
+      }
+      
+      // Strong protection for SSN
+      if (detection.type === 'ssn') {
+        strongPixelSize = Math.max(strongPixelSize, 80); // Very large pixels for SSN
+      }
+      
+      // Strong protection for names
+      if (detection.type === 'name') {
+        strongPixelSize = Math.max(strongPixelSize, 55); // Large pixels for names
+      }
+      
+      // Apply pixelation
+      applyPixelation(data, expandedWidth, expandedHeight, strongPixelSize);
+      
+      // Put the pixelated image data back
+      ctx.putImageData(imageData, expandedX, expandedY);
+      
+      // Apply multiple blur effects for maximum privacy
+      applyBlurEffects(ctx, expandedX, expandedY, expandedWidth, expandedHeight, detection.type);
+      
+      // Apply additional blackout protection for highly sensitive data
+      if (detection.type === 'credit_card' || detection.type === 'drivers_license' || detection.type === 'id_card' || detection.type === 'ssn') {
+        applyBlackoutProtection(ctx, expandedX, expandedY, expandedWidth, expandedHeight);
+      }
     }
   });
+}
+
+/**
+ * Apply solid black squares for maximum privacy
+ */
+function applyBlackSquares(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  // Create solid black rectangles
+  ctx.fillStyle = 'rgba(0, 0, 0, 1.0)';
+  ctx.fillRect(x, y, width, height);
+  
+  // Add a subtle border to make it clear it's a redaction
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, width, height);
 }
 
 /**
@@ -110,7 +146,7 @@ function applyPixelation(
   pixelSize: number
 ): void {
   // Use much larger pixel sizes for better privacy protection
-  const enhancedPixelSize = Math.max(pixelSize, 20); // Minimum 20px for effective obscuring
+  const enhancedPixelSize = Math.max(pixelSize, 40); // Minimum 40px for effective obscuring
   
   for (let py = 0; py < height; py += enhancedPixelSize) {
     for (let px = 0; px < width; px += enhancedPixelSize) {
@@ -148,7 +184,7 @@ function applyPixelation(
   }
   
   // Apply a second pass with smaller pixels for extra coverage
-  const secondPassPixelSize = Math.max(pixelSize / 2, 8);
+  const secondPassPixelSize = Math.max(pixelSize / 2, 20);
   for (let py = 0; py < height; py += secondPassPixelSize) {
     for (let px = 0; px < width; px += secondPassPixelSize) {
       // Calculate average color for this block
@@ -196,51 +232,61 @@ function applyBlurEffects(
   height: number,
   detectionType: string
 ): void {
-  let blurStrength = 8; // Base blur strength increased
+  let blurStrength = 15; // Base blur strength increased significantly
   
   // Extra strong blur for numerical data
   if (detectionType === 'numerical_data') {
-    blurStrength = 12; // Much stronger blur for numbers
+    blurStrength = 25; // Much stronger blur for numbers
   }
   
   // Strong blur for sensitive data (dates, birthdays, IDs)
   if (detectionType === 'sensitive_data') {
-    blurStrength = 10; // Strong blur for sensitive data
+    blurStrength = 20; // Strong blur for sensitive data
   }
   
   // Strong blur for barcodes
   if (detectionType === 'barcode') {
-    blurStrength = 12; // Strong blur for barcodes
+    blurStrength = 30; // Very strong blur for barcodes
   }
   
   // Strong blur for credit cards
   if (detectionType === 'credit_card') {
-    blurStrength = 15; // Very strong blur for credit cards
+    blurStrength = 35; // Very strong blur for credit cards
   }
   
   // Strong blur for driver's licenses
   if (detectionType === 'drivers_license') {
-    blurStrength = 12; // Strong blur for driver's licenses
+    blurStrength = 30; // Strong blur for driver's licenses
   }
   
   // Strong blur for ID cards
   if (detectionType === 'id_card') {
-    blurStrength = 11; // Strong blur for ID cards
+    blurStrength = 25; // Strong blur for ID cards
+  }
+  
+  // Strong blur for SSN
+  if (detectionType === 'ssn') {
+    blurStrength = 40; // Very strong blur for SSN
+  }
+  
+  // Strong blur for names
+  if (detectionType === 'name') {
+    blurStrength = 20; // Strong blur for names
   }
   
   // Apply multiple blur passes for maximum protection
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     ctx.filter = `blur(${blurStrength}px)`;
     ctx.drawImage(ctx.canvas, x, y, width, height, x, y, width, height);
     ctx.filter = 'none';
   }
   
   // Apply additional blur with different strengths
-  ctx.filter = 'blur(6px)';
+  ctx.filter = 'blur(20px)';
   ctx.drawImage(ctx.canvas, x, y, width, height, x, y, width, height);
   ctx.filter = 'none';
   
-  ctx.filter = 'blur(4px)';
+  ctx.filter = 'blur(15px)';
   ctx.drawImage(ctx.canvas, x, y, width, height, x, y, width, height);
   ctx.filter = 'none';
 }
@@ -274,7 +320,8 @@ export function getImageDataFromSrc(imageSrc: string): Promise<ImageData> {
 export function processImageWithPixelation(
   imageSrc: string,
   detections: PIIDetection[],
-  pixelSize: number = 8
+  pixelSize: number = 8,
+  useBlackSquares: boolean = false
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
@@ -294,7 +341,7 @@ export function processImageWithPixelation(
       ctx.drawImage(img, 0, 0);
       
       // Apply pixelation to detected regions
-      pixelateRegions(canvas, detections, pixelSize);
+      pixelateRegions(canvas, detections, pixelSize, useBlackSquares);
       
       // Return high-quality image data
       const processedImageData = canvas.toDataURL('image/jpeg', 0.95);

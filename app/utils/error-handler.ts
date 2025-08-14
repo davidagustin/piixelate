@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * PII Detection Error Handler
  * Centralized error handling with proper logging and recovery strategies
