@@ -621,7 +621,7 @@ export class SpecializedDetector {
       
       if (lineText.includes('patient') || lineText.includes('medical')) {
         const detection = this.createSpecializedDetection(
-          line, lineIndex, 'medical_info', 0.85, ocrResult.text
+          line, lineIndex, 'medical_info', 0.85
         );
         if (detection) detections.push(detection);
       }
@@ -641,7 +641,7 @@ export class SpecializedDetector {
       
       if (lineText.includes('account') || lineText.includes('balance')) {
         const detection = this.createSpecializedDetection(
-          line, lineIndex, 'financial_data', 0.85, ocrResult.text
+          line, lineIndex, 'financial_data', 0.85
         );
         if (detection) detections.push(detection);
       }
@@ -661,7 +661,7 @@ export class SpecializedDetector {
       
       if (lineText.includes('government') || lineText.includes('official')) {
         const detection = this.createSpecializedDetection(
-          line, lineIndex, 'id_card', 0.9, ocrResult.text
+          line, lineIndex, 'id_card', 0.9
         );
         if (detection) detections.push(detection);
       }

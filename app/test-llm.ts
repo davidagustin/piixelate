@@ -38,11 +38,7 @@ const testData = [
 async function testEnhancedLLMDetector() {
   for (const test of testData) {
     try {
-      const detections = await enhancedLLMDetector.detectPII(test.text);
-      
-      const foundTypes = detections.map(d => d.type as string);
-      const missingTypes = test.expectedTypes.filter(type => !foundTypes.includes(type));
-      
+      await enhancedLLMDetector.detectPII(test.text);
     } catch (error) {
       // Error occurred during testing
     }
@@ -66,34 +62,21 @@ async function testLLMVerifier() {
   ];
 
   try {
-    const verifiedDetections = await llmVerifier.verifyWithLLM(testText, mockDetections);
-    
+    await llmVerifier.verifyWithLLM(testText, mockDetections);
   } catch (error) {
     // Error occurred during testing
   }
 }
 
 /**
- * Test provider statistics
- */
-function testProviderStats() {
-  const providerStats = enhancedLLMDetector.getProviderStats();
-  const cacheStats = enhancedLLMDetector.getCacheStats();
-}
-
-/**
  * Main test function
  */
 async function runTests() {
-  // Test provider statistics
-  testProviderStats();
-  
   // Test enhanced LLM detector
   await testEnhancedLLMDetector();
   
   // Test LLM verifier
   await testLLMVerifier();
-  
 }
 
 // Run tests if this file is executed directly
@@ -103,4 +86,4 @@ if (typeof window === 'undefined') {
   });
 }
 
-export { runTests, testEnhancedLLMDetector, testLLMVerifier, testProviderStats };
+export { runTests, testEnhancedLLMDetector, testLLMVerifier };

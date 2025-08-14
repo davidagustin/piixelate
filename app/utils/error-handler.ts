@@ -217,7 +217,7 @@ export class PIIErrorHandler {
     try {
       return await operation();
     } catch (error) {
-      const piiError = this.createError(
+      this.createError(
         errorType,
         `Operation failed: ${operationName}`,
         { operationName, originalError: error instanceof Error ? error.message : String(error) },

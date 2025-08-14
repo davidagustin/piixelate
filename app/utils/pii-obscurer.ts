@@ -11,7 +11,7 @@
  * - Tokenization (replacement with tokens)
  */
 
-import { PIIDetection, PIIType, DetectionSource } from '../types/pii-types';
+import { PIIDetection, PIIType } from '../types/pii-types';
 import { errorHandler } from './error-handler';
 
 /**
@@ -332,17 +332,17 @@ export class PIIObscurer {
     
     switch (type) {
       case 'name':
-        return this.anonymizationData.names[index];
+        return this.anonymizationData.names[index] ?? `Sample Name ${index + 1}`;
       case 'email':
-        return this.anonymizationData.emails[index];
+        return this.anonymizationData.emails[index] ?? `sample${index + 1}@example.com`;
       case 'phone':
-        return this.anonymizationData.phones[index];
+        return this.anonymizationData.phones[index] ?? '(XXX) XXX-XXXX';
       case 'address':
-        return this.anonymizationData.addresses[index];
+        return this.anonymizationData.addresses[index] ?? 'XXX Sample St, Anytown, USA';
       case 'ssn':
-        return this.anonymizationData.ssn[index];
+        return this.anonymizationData.ssn[index] ?? 'XXX-XX-XXXX';
       case 'credit_card':
-        return this.anonymizationData.creditCards[index];
+        return this.anonymizationData.creditCards[index] ?? 'XXXX-XXXX-XXXX-XXXX';
       default:
         return `FAKE_${type.toUpperCase()}_${index}`;
     }
@@ -363,11 +363,13 @@ export class PIIObscurer {
    * @returns Masked email
    */
   private maskEmail(text: string): string {
-    const [local, domain] = text.split('@');
+    const [localPart, domainPart] = text.split('@');
+    const local = localPart ?? '';
+    const domain = domainPart ?? '';
     if (local.length <= 2) {
       return `${local.charAt(0)}***@${domain}`;
     }
-    return `${local.charAt(0)}${this.config.maskCharacter.repeat(local.length - 2)}${local.charAt(local.length - 1)}@${domain}`;
+    return `${local.charAt(0)}${this.config.maskCharacter.repeat(Math.max(local.length - 2, 0))}${local.charAt(Math.max(local.length - 1, 0))}@${domain}`;
   }
 
   /**
@@ -476,7 +478,7 @@ export class PIIObscurer {
   public decryptPII(
     obscuredText: string,
     technique: ObscuringTechnique,
-    metadata?: Record<string, any>
+    _metadata?: Record<string, any>
   ): string | null {
     try {
       switch (technique) {

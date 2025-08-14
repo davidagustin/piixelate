@@ -12,10 +12,7 @@ import {
   Eye, 
   EyeOff, 
   Zap, 
-  Menu,
-  RefreshCw,
-  Lock,
-  X
+  Lock
 } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { detectPII } from './utils/pii-detector-refactored';
@@ -33,23 +30,18 @@ export default function PIIxelate() {
   // Processing state
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [processingProgress, setProcessingProgress] = useState<string>('');
-  const [processingDuration, setProcessingDuration] = useState<number>(0);
   
   // Detection results
   const [detectedPII, setDetectedPII] = useState<PIIDetection[]>([]);
-  const [detectionStatistics, setDetectionStatistics] = useState<{total: number; byType: Record<string, number>} | null>(null);
   
   // UI state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isMobileMenuVisible, setIsMobileMenuVisible] = useState(false);
-  const [isAdvancedOptionsVisible, setIsAdvancedOptionsVisible] = useState(false);
   
   // Configuration
   const [isLLMEnabled, setIsLLMEnabled] = useState(true);
-  const [detectionConfidenceThreshold, setDetectionConfidenceThreshold] = useState(0.6);
-
-  
+ 
+   
   const webcamRef = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -185,9 +177,9 @@ export default function PIIxelate() {
       for (let y = 0; y < expandedBox.height; y += pixelSize) {
         for (let x = 0; x < expandedBox.width; x += pixelSize) {
           const index = (y * expandedBox.width + x) * 4;
-          const r = data[index];
-          const g = data[index + 1];
-          const b = data[index + 2];
+          const r = data[index] ?? 0;
+          const g = data[index + 1] ?? 0;
+          const b = data[index + 2] ?? 0;
           
           // Fill the pixel block with the average color
           for (let py = 0; py < pixelSize && y + py < expandedBox.height; py++) {
@@ -268,22 +260,11 @@ export default function PIIxelate() {
       }
       
       // Detect PII using the utility function
-      const startTime = Date.now();
       const detectionResult = await detectPII(originalImageSrc);
-      const endTime = Date.now();
-      const processingTimeMs = endTime - startTime;
       setDetectedPII(detectionResult.detections);
-      setProcessingDuration(processingTimeMs);
       
       // Calculate detection statistics
-      const stats = {
-        total: detectionResult.detections.length,
-        byType: detectionResult.detections.reduce((acc, detection) => {
-          acc[detection.type] = (acc[detection.type] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      };
-      setDetectionStatistics(stats);
+      // (stats calculation removed as not used)
       
       if (detectionResult.detections.length > 0) {
         // Pixelate the image
@@ -407,7 +388,7 @@ export default function PIIxelate() {
             >
               <div className="flex flex-col items-center space-y-3 h-full justify-center">
                 <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  mode === 'camera' 
+                  inputMethod === 'camera' 
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white' 
                     : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100'
                 }`}>
@@ -429,7 +410,7 @@ export default function PIIxelate() {
             >
               <div className="flex flex-col items-center space-y-3 h-full justify-center">
                 <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  mode === 'upload' 
+                  inputMethod === 'upload' 
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white' 
                     : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100'
                 }`}>

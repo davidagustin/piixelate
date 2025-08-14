@@ -40,7 +40,7 @@ export class TesseractOCRProcessor implements OCRProcessor {
       
       // Enhanced OCR configuration for better accuracy
       const ocrResult = await Tesseract.recognize(imageSource, 'eng', {
-        logger: (progressMessage: any) => {
+        logger: (_progressMessage: any) => {
           // Progress logging disabled
         },
         // Enhanced OCR settings
@@ -88,7 +88,7 @@ export class MockOCRProcessor implements OCRProcessor {
     // Mock OCR processor initialized
   }
 
-  async recognize(imageSource: string): Promise<OCRResult> {
+  async recognize(_imageSource: string): Promise<OCRResult> {
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 500));
     

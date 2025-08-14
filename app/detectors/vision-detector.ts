@@ -6,7 +6,7 @@
 import { PIIDetection, VisionDetection, OCRResult, DetectionSource } from '../types/pii-types';
 import { computerVisionProcessor } from '../utils/computer-vision';
 import { getImageDataFromSrc } from '../utils/image-processor';
-import { errorHandler, PIIErrorType } from '../utils/error-handler';
+import { errorHandler } from '../utils/error-handler';
 import { detectionConfig } from '../config/detection-config';
 import { PII_PATTERNS } from '../utils/pii-patterns';
 
@@ -253,7 +253,9 @@ export class VisionDetector {
     };
     
     visionDetections.forEach(detection => {
-      stats[detection.type]++;
+      if (detection.type && stats.hasOwnProperty(detection.type)) {
+        (stats as any)[detection.type]++;
+      }
     });
     
     return stats;

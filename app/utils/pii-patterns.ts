@@ -336,7 +336,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'phone':
       // Check if it's a valid phone number format
-      const phoneDigits = text.replace(/[^0-9]/g, '');
+      const phoneDigits = detectedText.replace(/[^0-9]/g, '');
       if (phoneDigits.length >= 10 && phoneDigits.length <= 15) {
         baseConfidence = 0.9;
       } else {
@@ -347,7 +347,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
     case 'email':
       // Basic email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(text)) {
+      if (emailRegex.test(detectedText)) {
         baseConfidence = 0.85;
       } else {
         baseConfidence = 0.6; // Lower confidence for invalid emails
@@ -356,7 +356,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'ssn':
       // SSN validation (basic)
-      const ssnDigits = text.replace(/[^0-9]/g, '');
+      const ssnDigits = detectedText.replace(/[^0-9]/g, '');
       if (ssnDigits.length === 9) {
         baseConfidence = 0.9;
       } else {
@@ -366,9 +366,9 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'address':
       // Address context validation
-      if (context.toLowerCase().includes('address') || 
-          context.toLowerCase().includes('street') ||
-          context.toLowerCase().includes('road')) {
+      if (contextText.toLowerCase().includes('address') || 
+          contextText.toLowerCase().includes('street') ||
+          contextText.toLowerCase().includes('road')) {
         baseConfidence = 0.8;
       } else {
         baseConfidence = 0.65; // Lower confidence without context
@@ -377,9 +377,9 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'license_plate':
       // License plate context
-      if (context.toLowerCase().includes('plate') ||
-          context.toLowerCase().includes('vehicle') ||
-          context.toLowerCase().includes('car')) {
+      if (contextText.toLowerCase().includes('plate') ||
+          contextText.toLowerCase().includes('vehicle') ||
+          contextText.toLowerCase().includes('car')) {
         baseConfidence = 0.85;
       } else {
         baseConfidence = 0.7; // Lower confidence without context
@@ -388,8 +388,8 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'street_sign':
       // Street sign confidence based on text length and format
-      if (text.length >= 2 && text.length <= 6) {
-        baseConfidence = 0.75 + (text.length * 0.02); // Longer signs get higher confidence
+      if (detectedText.length >= 2 && detectedText.length <= 6) {
+        baseConfidence = 0.75 + (detectedText.length * 0.02); // Longer signs get higher confidence
       } else {
         baseConfidence = 0.6; // Lower confidence for unusual lengths
       }
@@ -397,7 +397,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'numerical_data':
       // Numerical data confidence based on length and format
-      const numDigits = text.replace(/[^0-9]/g, '');
+      const numDigits = detectedText.replace(/[^0-9]/g, '');
       if (numDigits.length >= 4 && numDigits.length <= 12) {
         baseConfidence = 0.8 + (numDigits.length * 0.01); // Longer numbers get higher confidence
       } else {
@@ -412,7 +412,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'barcode':
       // Barcode confidence based on length and format
-      const barcodeLength = text.replace(/[^0-9A-Za-z]/g, '').length;
+      const barcodeLength = detectedText.replace(/[^0-9A-Za-z]/g, '').length;
       if (barcodeLength >= 6 && barcodeLength <= 20) {
         baseConfidence = 0.8 + (barcodeLength * 0.005); // Longer barcodes get higher confidence
       } else {
@@ -423,7 +423,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
     case 'passport_number':
       // Passport number validation
       const passportRegex = /^[A-Z]{1,2}\d{6,9}$/i;
-      if (passportRegex.test(text.replace(/\s/g, ''))) {
+      if (passportRegex.test(detectedText.replace(/\s/g, ''))) {
         baseConfidence = 0.9;
       } else {
         baseConfidence = 0.65;
@@ -448,7 +448,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
     case 'ip_address':
       // IP address validation
       const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-      if (ipRegex.test(text)) {
+      if (ipRegex.test(detectedText)) {
         baseConfidence = 0.9;
       } else {
         baseConfidence = 0.6;
@@ -458,7 +458,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
     case 'mac_address':
       // MAC address validation
       const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-      if (macRegex.test(text)) {
+      if (macRegex.test(detectedText)) {
         baseConfidence = 0.9;
       } else {
         baseConfidence = 0.6;
@@ -468,7 +468,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
     case 'vehicle_vin':
       // VIN validation (17 characters, no I, O, Q)
       const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/i;
-      if (vinRegex.test(text.replace(/\s/g, ''))) {
+      if (vinRegex.test(detectedText.replace(/\s/g, ''))) {
         baseConfidence = 0.9;
       } else {
         baseConfidence = 0.65;
@@ -482,7 +482,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       
     case 'bank_account':
       // Bank account number confidence
-      const accountDigits = text.replace(/[^0-9]/g, '');
+      const accountDigits = detectedText.replace(/[^0-9]/g, '');
       if (accountDigits.length >= 8 && accountDigits.length <= 12) {
         baseConfidence = 0.85;
       } else {
@@ -493,7 +493,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
     case 'tax_id':
       // Tax ID validation (EIN format: XX-XXXXXXX)
       const taxRegex = /^\d{2}-\d{7}$/;
-      if (taxRegex.test(text)) {
+      if (taxRegex.test(detectedText)) {
         baseConfidence = 0.9;
       } else {
         baseConfidence = 0.65;
@@ -529,7 +529,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
       // Cryptocurrency wallet validation
       const btcRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
       const ethRegex = /^0x[a-fA-F0-9]{40}$/;
-      if (btcRegex.test(text) || ethRegex.test(text)) {
+      if (btcRegex.test(detectedText) || ethRegex.test(detectedText)) {
         baseConfidence = 0.9;
       } else {
         baseConfidence = 0.65;
@@ -539,7 +539,7 @@ export function getConfidenceScore(piiType: string, detectedText: string, contex
     case 'social_media_handle':
       // Social media handle validation
       const handleRegex = /^[A-Za-z0-9_]{3,15}$/;
-      if (handleRegex.test(text)) {
+      if (handleRegex.test(detectedText)) {
         baseConfidence = 0.75;
       } else {
         baseConfidence = 0.6;
@@ -564,7 +564,8 @@ export function isValidCreditCard(number: string): boolean {
   let isEven = false;
   
   for (let i = number.length - 1; i >= 0; i--) {
-    let digit = parseInt(number[i]);
+    const charAtIndex = number.charAt(i);
+    let digit = parseInt(charAtIndex, 10);
     
     if (isEven) {
       digit *= 2;

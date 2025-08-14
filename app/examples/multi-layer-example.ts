@@ -12,7 +12,7 @@
 
 import { multiLayerDetector } from '../detectors/multi-layer-detector';
 import { piiObscurer } from '../utils/pii-obscurer';
-import { detectionConfig } from '../config/detection-config';
+
 import { PIIDetection, DetectionResult } from '../types/pii-types';
 
 /**
@@ -49,7 +49,6 @@ const EXAMPLE_SCENARIOS = {
  * Multi-layer PII detection example
  */
 export class MultiLayerExample {
-  private config = detectionConfig.getConfig();
 
   /**
    * Run comprehensive multi-layer detection example
@@ -81,7 +80,7 @@ export class MultiLayerExample {
       await multiLayerDetector.initialize();
       
       // Show configuration
-      const config = multiLayerDetector.getConfig();
+      multiLayerDetector.getConfig();
       
     } catch (error) {
       throw error;
@@ -92,7 +91,7 @@ export class MultiLayerExample {
    * Run detection scenarios
    */
   private async runDetectionScenarios(): Promise<void> {
-    for (const [key, scenario] of Object.entries(EXAMPLE_SCENARIOS)) {
+    for (const [, scenario] of Object.entries(EXAMPLE_SCENARIOS)) {
       try {
         const result = await this.runSingleScenario(scenario);
         this.displayScenarioResults(scenario, result);
@@ -126,21 +125,21 @@ export class MultiLayerExample {
    * @param scenario - Scenario configuration
    * @param result - Detection result
    */
-  private displayScenarioResults(scenario: any, result: DetectionResult): void {
+  private displayScenarioResults(_scenario: any, result: DetectionResult): void {
     if (result.errors.length > 0) {
       // Handle errors
     }
 
     // Show detections by type
-    const detectionsByType = this.groupDetectionsByType(result.detections);
+    this.groupDetectionsByType(result.detections);
 
     // Show layer performance
-    if (result.stats?.layerResults) {
-      // Process layer results
+    if (result.metadata) {
+      // Process metadata
     }
 
     // Show accuracy analysis
-    this.analyzeAccuracy(scenario, result.detections);
+    
   }
 
   /**
@@ -155,25 +154,7 @@ export class MultiLayerExample {
     }, {} as Record<string, number>);
   }
 
-  /**
-   * Analyze detection accuracy
-   * @param scenario - Scenario configuration
-   * @param detections - Array of detections
-   */
-  private analyzeAccuracy(scenario: any, detections: PIIDetection[]): void {
-    const detectedTypes = new Set(detections.map(d => d.type));
-    const expectedTypes = new Set(scenario.expectedTypes);
-    
-    const truePositives = [...detectedTypes].filter(type => expectedTypes.has(type));
-    const falsePositives = [...detectedTypes].filter(type => !expectedTypes.has(type));
-    const falseNegatives = [...expectedTypes].filter(type => !detectedTypes.has(type));
-    
-    const precision = truePositives.length / (truePositives.length + falsePositives.length);
-    const recall = truePositives.length / (truePositives.length + falseNegatives.length);
-    const f1Score = 2 * (precision * recall) / (precision + recall);
-    
-    // Accuracy analysis completed
-  }
+
 
   /**
    * Demonstrate obscuring techniques
@@ -218,7 +199,7 @@ export class MultiLayerExample {
     
     techniques.forEach(technique => {
       sampleDetections.forEach(detection => {
-        const result = piiObscurer.obscurePII(detection, technique);
+        piiObscurer.obscurePII(detection, technique);
         // Process obscuring result
       });
     });
@@ -229,7 +210,6 @@ export class MultiLayerExample {
    */
   private async showPerformanceAnalysis(): Promise<void> {
     // Get system statistics
-    const config = multiLayerDetector.getConfig();
     const cacheStats = multiLayerDetector.getCacheStats();
     const obscurerStats = piiObscurer.getTokenMapStats();
 
@@ -265,23 +245,8 @@ export class MultiLayerExample {
     }
 
     if (times.length > 0) {
-      const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
-      const minTime = Math.min(...times);
-      const maxTime = Math.max(...times);
-      
       // Performance results calculated
     }
-  }
-
-  /**
-   * Calculate variance
-   * @param values - Array of values
-   * @returns Variance
-   */
-  private calculateVariance(values: number[]): number {
-    const mean = values.reduce((a, b) => a + b, 0) / values.length;
-    const squaredDiffs = values.map(value => Math.pow(value - mean, 2));
-    return squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
   }
 }
 

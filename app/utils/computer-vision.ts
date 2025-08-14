@@ -262,69 +262,10 @@ class CanvasProcessor {
       }
     ];
   }
-
-
-
-  // Find connected components (simplified)
-  private findConnectedComponents(edges: Uint8ClampedArray, width: number, height: number): Array<{x: number, y: number, width: number, height: number, area: number}> {
-    const components: Array<{x: number, y: number, width: number, height: number, area: number}> = [];
-    const visited = new Set<number>();
-    
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        
-        if ((edges[idx] || 0) > 0 && !visited.has(idx)) {
-          const component = this.floodFill(edges, width, height, x, y, visited);
-          if (component.area > 50) {
-            components.push(component);
-          }
-        }
-      }
-    }
-    
-    return components;
-  }
-
-  // Flood fill algorithm for connected component analysis
-  private floodFill(edges: Uint8ClampedArray, width: number, height: number, startX: number, startY: number, visited: Set<number>): {x: number, y: number, width: number, height: number, area: number} {
-    const stack: [number, number][] = [[startX, startY]];
-    let minX = startX, maxX = startX, minY = startY, maxY = startY;
-    let area = 0;
-    
-    while (stack.length > 0) {
-      const [x, y] = stack.pop()!;
-      const idx = y * width + x;
-      
-      if (x < 0 || x >= width || y < 0 || y >= height || visited.has(idx) || edges[idx] === 0) {
-        continue;
-      }
-      
-      visited.add(idx);
-      area++;
-      
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-      
-      // Add neighbors
-      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-    }
-    
-    return {
-      x: minX,
-      y: minY,
-      width: maxX - minX + 1,
-      height: maxY - minY + 1,
-      area
-    };
-  }
 }
 
 // TensorFlow.js integration for ML-based detection
 class TensorFlowProcessor {
-  private model: any;
   private isInitialized = false;
 
   async initialize(): Promise<void> {
@@ -374,7 +315,6 @@ class TensorFlowProcessor {
 
 // MediaPipe integration for document and card detection
 class MediaPipeProcessor {
-  private documentDetector: any;
   private isInitialized = false;
 
   async initialize(): Promise<void> {

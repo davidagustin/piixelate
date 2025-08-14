@@ -3,7 +3,7 @@
  * Handles image manipulation, pixelation, and canvas operations
  */
 
-import { BoundingBox, PIIDetection } from '../types/pii-types';
+import { PIIDetection } from '../types/pii-types';
 
 /**
  * Enhanced pixelation function with stronger privacy protection
@@ -120,10 +120,10 @@ function applyPixelation(
       for (let dy = 0; dy < enhancedPixelSize && py + dy < height; dy++) {
         for (let dx = 0; dx < enhancedPixelSize && px + dx < width; dx++) {
           const index = ((py + dy) * width + (px + dx)) * 4;
-          r += data[index];
-          g += data[index + 1];
-          b += data[index + 2];
-          a += data[index + 3];
+          r += data[index] ?? 0;
+          g += data[index + 1] ?? 0;
+          b += data[index + 2] ?? 0;
+          a += data[index + 3] ?? 0;
           count++;
         }
       }
@@ -157,10 +157,10 @@ function applyPixelation(
       for (let dy = 0; dy < secondPassPixelSize && py + dy < height; dy++) {
         for (let dx = 0; dx < secondPassPixelSize && px + dx < width; dx++) {
           const index = ((py + dy) * width + (px + dx)) * 4;
-          r += data[index];
-          g += data[index + 1];
-          b += data[index + 2];
-          a += data[index + 3];
+          r += data[index] ?? 0;
+          g += data[index + 1] ?? 0;
+          b += data[index + 2] ?? 0;
+          a += data[index + 3] ?? 0;
           count++;
         }
       }
