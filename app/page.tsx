@@ -1155,25 +1155,25 @@ export default function PIIxelate() {
             
             {/* Image Information */}
             {imageMetadata && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800 dark:to-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-100 dark:to-blue-100 rounded-xl border border-slate-200 dark:border-slate-300">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Resolution</p>
-                    <p className="text-secondary">{imageMetadata.width} × {imageMetadata.height}</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Resolution</p>
+                    <p className="text-slate-600 dark:text-slate-700">{imageMetadata.width} × {imageMetadata.height}</p>
                   </div>
                   {imageMetadata.size && (
                     <div className="text-center">
-                      <p className="font-semibold text-slate-900 dark:text-white">File Size</p>
-                      <p className="text-secondary">{imageMetadata.size}</p>
+                      <p className="font-semibold text-slate-900 dark:text-slate-800">File Size</p>
+                      <p className="text-slate-600 dark:text-slate-700">{imageMetadata.size}</p>
                     </div>
                   )}
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Aspect Ratio</p>
-                    <p className="text-secondary">{(imageMetadata.width / imageMetadata.height).toFixed(2)}:1</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Aspect Ratio</p>
+                    <p className="text-slate-600 dark:text-slate-700">{(imageMetadata.width / imageMetadata.height).toFixed(2)}:1</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Status</p>
-                    <p className="text-orange-600 dark:text-orange-400 font-medium">Pending Analysis</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Status</p>
+                    <p className="text-orange-600 dark:text-orange-700 font-medium">Pending Analysis</p>
                   </div>
                 </div>
               </div>
@@ -1224,31 +1224,31 @@ export default function PIIxelate() {
             
             {/* Processed Image Information */}
             {imageMetadata && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800">
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-100 dark:to-emerald-100 rounded-xl border border-green-200 dark:border-green-300">
                 <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Resolution</p>
-                    <p className="text-secondary">{imageMetadata.width} × {imageMetadata.height}</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Resolution</p>
+                    <p className="text-slate-600 dark:text-slate-700">{imageMetadata.width} × {imageMetadata.height}</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Quality</p>
-                    <p className="text-secondary">High (95% JPEG)</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Quality</p>
+                    <p className="text-slate-600 dark:text-slate-700">High (95% JPEG)</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Status</p>
-                    <p className="text-green-600 dark:text-green-400 font-medium">Protected ✓</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Status</p>
+                    <p className="text-green-700 dark:text-green-800 font-medium">Protected ✓</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Numerical Data</p>
-                    <p className="text-green-600 dark:text-green-400 font-medium">Blurred ✓</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Numerical Data</p>
+                    <p className="text-green-700 dark:text-green-800 font-medium">Blurred ✓</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Text Data</p>
-                    <p className="text-green-600 dark:text-green-400 font-medium">Protected ✓</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Text Data</p>
+                    <p className="text-green-700 dark:text-green-800 font-medium">Protected ✓</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-semibold text-slate-900 dark:text-white">Barcodes</p>
-                    <p className="text-green-600 dark:text-green-400 font-medium">Blurred ✓</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-800">Barcodes</p>
+                    <p className="text-green-700 dark:text-green-800 font-medium">Blurred ✓</p>
                   </div>
                 </div>
               </div>
@@ -1296,17 +1296,17 @@ export default function PIIxelate() {
               {detectedPII.map((detection, index) => (
                 <div
                   key={index}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-xl space-y-2 sm:space-y-0"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-100 dark:to-orange-100 border border-red-200 dark:border-red-300 rounded-xl space-y-2 sm:space-y-0"
                 >
                   <div className="flex items-center space-x-3 sm:space-x-4">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900 dark:text-white capitalize text-sm sm:text-base">
+                      <p className="font-semibold text-slate-900 dark:text-slate-800 capitalize text-sm sm:text-base">
                         {detection.type.replace('_', ' ')}
                       </p>
-                      <p className="text-xs sm:text-sm text-secondary">
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-700">
                         Confidence: {Math.round(detection.confidence * 100)}%
                       </p>
                     </div>
@@ -1324,12 +1324,12 @@ export default function PIIxelate() {
 
         {/* Status Messages */}
         {errorMessage && (
-          <div className="security-card rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
+          <div className="security-card rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-100 dark:to-red-200">
             <div className="flex items-start space-x-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <p className="text-red-700 dark:text-red-300 font-medium text-sm sm:text-base">{errorMessage}</p>
+              <p className="text-red-700 dark:text-red-800 font-medium text-sm sm:text-base">{errorMessage}</p>
             </div>
           </div>
         )}
