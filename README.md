@@ -2,6 +2,50 @@
 
 A comprehensive, multi-layer PII (Personally Identifiable Information) detection and pixelation application built with Next.js, TypeScript, and advanced computer vision technologies.
 
+## 🛡️ What PIIxelate Does
+
+PIIxelate is an AI-powered privacy protection tool that automatically detects and pixelates Personally Identifiable Information (PII) in your images. It uses advanced computer vision and pattern matching to find sensitive data like credit card numbers, addresses, phone numbers, and more, then securely blurs them to protect your privacy.
+
+### 🔍 **Detects:**
+- **Credit card numbers & financial data**
+- **Driver's licenses & government IDs**
+- **Phone numbers & email addresses**
+- **Home addresses & personal info**
+- **Medical records & prescriptions**
+- **Barcodes & document numbers**
+
+### 🛡️ **Protects:**
+- **Your personal privacy**
+- **Sensitive documents**
+- **Financial information**
+- **Medical records**
+- **Identity documents**
+- **Business confidential data**
+
+### 🏷️ **Key Features:**
+- **AI-Powered Detection** - Advanced machine learning for accurate PII identification
+- **Multi-Layer Security** - Multiple detection methods for comprehensive coverage
+- **Privacy-First Design** - Local processing with optional AI services
+
+### ⚠️ **Important Disclaimer**
+
+PIIxelate is not 100% accurate in detecting all PII. While our AI-powered system uses multiple detection layers to identify sensitive information, it may miss some PII elements or incorrectly identify non-sensitive text as PII. The accuracy depends on various factors including image quality, text clarity, and the complexity of the content.
+
+#### 🔍 **Your Responsibility:**
+- **Always review processed images** before sharing or publishing
+- **Manually check for any missed PII** that may not have been detected
+- **Verify that all sensitive information** has been properly obscured
+- **Do not rely solely on automated detection** for critical privacy protection
+
+### 🔒 **Privacy-First Processing**
+
+This application processes images locally in your browser. Images are never stored on our servers. However, when using AI-powered detection, text content may be sent to external AI services for analysis. You can disable AI detection for complete local processing.
+
+**Privacy Features:**
+- **No Image Storage** - Images are processed locally and never saved
+- **Local Image Processing** - Core detection runs in your browser
+- **Optional AI Services** - Choose between local-only or enhanced AI detection
+
 ## 🚀 Enhanced Features
 
 ### 🔍 **Multi-Layer Detection System**
@@ -90,6 +134,25 @@ npm install
 npm run dev
 ```
 
+### **Quick Start**
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm run start
+
+# Run tests
+npm test
+```
+
+### **View Source Code**
+- **Main Application**: [`app/page.tsx`](app/page.tsx)
+- **PII Detection**: [`app/utils/pii-detector-refactored.ts`](app/utils/pii-detector-refactored.ts)
+- **Pattern Matching**: [`app/utils/pii-patterns.ts`](app/utils/pii-patterns.ts)
+- **Multi-Layer Detector**: [`app/detectors/multi-layer-detector.ts`](app/detectors/multi-layer-detector.ts)
+- **Configuration**: [`app/config/detection-config.ts`](app/config/detection-config.ts)
+
 ### **Environment Configuration**
 ```bash
 # Create .env.local file
@@ -175,6 +238,14 @@ const customPatterns = {
 
 ## 🔧 **Development**
 
+### **Build Status**
+✅ **Successfully Built** - The application has been tested and builds successfully with:
+- ✅ Next.js 15.4.6 compilation
+- ✅ TypeScript type checking
+- ✅ ESLint validation (all critical errors resolved)
+- ✅ Static page generation
+- ✅ Optimized bundle with vendor chunking
+
 ### **Available Scripts**
 ```bash
 npm run dev          # Start development server
@@ -184,7 +255,19 @@ npm run lint         # Run ESLint
 npm run lint:fix     # Fix linting issues
 npm run type-check   # TypeScript type checking
 npm run format       # Format code with Prettier
+npm run test         # Run test suite
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
 ```
+
+### **Current Application Status**
+
+🚀 **Live and Running** - The application is currently:
+- ✅ **Development Server**: Running on `http://localhost:3000`
+- ✅ **Production Build**: Successfully compiled and optimized
+- ✅ **All Routes**: Main app (`/`) and camera test (`/camera-test`) working
+- ✅ **Core Features**: PII detection, camera capture, file upload functional
+- ✅ **UI Components**: Responsive design with modern styling
 
 ### **Testing**
 
@@ -389,7 +472,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **TensorFlow.js** for computer vision
 - **Lucide React** for beautiful icons
 - **Tailwind CSS** for styling
-- **Next.js** for the framework
+- **Next.js 15.4.6** for the framework
+- **React Webcam** for camera integration
+- **MediaPipe** for advanced computer vision tasks
+- **Face-api.js** for facial detection capabilities
 
 ## 📞 **Support**
 

@@ -36,62 +36,57 @@ export function pixelateRegions(
       const imageData = ctx.getImageData(expandedX, expandedY, expandedWidth, expandedHeight);
       const data = imageData.data;
       
-      // Apply much stronger pixelation for all sensitive data
-      let strongPixelSize = Math.max(pixelSize, 40); // Much larger base pixels for stronger effect
+      // Apply moderate pixelation for better balance between privacy and readability
+      let moderatePixelSize = Math.max(pixelSize, 8); // Smaller base pixels for less aggressive effect
       
-      // Extra strong protection for numerical data
+      // Moderate protection for numerical data
       if (detection.type === 'numerical_data') {
-        strongPixelSize = Math.max(strongPixelSize, 50); // Much larger pixels for numbers
+        moderatePixelSize = Math.max(moderatePixelSize, 12); // Moderate pixels for numbers
       }
       
-      // Strong protection for sensitive data (dates, birthdays, IDs)
+      // Moderate protection for sensitive data (dates, birthdays, IDs)
       if (detection.type === 'sensitive_data') {
-        strongPixelSize = Math.max(strongPixelSize, 45); // Large pixels for sensitive data
+        moderatePixelSize = Math.max(moderatePixelSize, 10); // Moderate pixels for sensitive data
       }
       
-      // Strong protection for barcodes
+      // Moderate protection for barcodes
       if (detection.type === 'barcode') {
-        strongPixelSize = Math.max(strongPixelSize, 60); // Very large pixels for barcodes
+        moderatePixelSize = Math.max(moderatePixelSize, 15); // Moderate pixels for barcodes
       }
       
-      // Strong protection for credit cards
+      // Moderate protection for credit cards
       if (detection.type === 'credit_card') {
-        strongPixelSize = Math.max(strongPixelSize, 70); // Very large pixels for credit cards
+        moderatePixelSize = Math.max(moderatePixelSize, 18); // Moderate pixels for credit cards
       }
       
-      // Strong protection for driver's licenses
+      // Moderate protection for driver's licenses
       if (detection.type === 'drivers_license') {
-        strongPixelSize = Math.max(strongPixelSize, 65); // Very large pixels for driver's licenses
+        moderatePixelSize = Math.max(moderatePixelSize, 16); // Moderate pixels for driver's licenses
       }
       
-      // Strong protection for ID cards
+      // Moderate protection for ID cards
       if (detection.type === 'id_card') {
-        strongPixelSize = Math.max(strongPixelSize, 60); // Large pixels for ID cards
+        moderatePixelSize = Math.max(moderatePixelSize, 14); // Moderate pixels for ID cards
       }
       
-      // Strong protection for SSN
+      // Moderate protection for SSN
       if (detection.type === 'ssn') {
-        strongPixelSize = Math.max(strongPixelSize, 80); // Very large pixels for SSN
+        moderatePixelSize = Math.max(moderatePixelSize, 20); // Moderate pixels for SSN
       }
       
-      // Strong protection for names
+      // Moderate protection for names
       if (detection.type === 'name') {
-        strongPixelSize = Math.max(strongPixelSize, 55); // Large pixels for names
+        moderatePixelSize = Math.max(moderatePixelSize, 12); // Moderate pixels for names
       }
       
       // Apply pixelation
-      applyPixelation(data, expandedWidth, expandedHeight, strongPixelSize);
+      applyPixelation(data, expandedWidth, expandedHeight, moderatePixelSize);
       
       // Put the pixelated image data back
       ctx.putImageData(imageData, expandedX, expandedY);
       
-      // Apply multiple blur effects for maximum privacy
-      applyBlurEffects(ctx, expandedX, expandedY, expandedWidth, expandedHeight, detection.type);
-      
-      // Apply additional blackout protection for highly sensitive data
-      if (detection.type === 'credit_card' || detection.type === 'drivers_license' || detection.type === 'id_card' || detection.type === 'ssn') {
-        applyBlackoutProtection(ctx, expandedX, expandedY, expandedWidth, expandedHeight);
-      }
+      // Apply subtle blur effects for privacy
+      applySubtleBlurEffects(ctx, expandedX, expandedY, expandedWidth, expandedHeight, detection.type);
     }
   });
 }
@@ -116,28 +111,10 @@ function applyBlackSquares(
   ctx.strokeRect(x, y, width, height);
 }
 
-/**
- * Apply blackout protection for maximum privacy
- */
-function applyBlackoutProtection(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): void {
-  // Create a semi-transparent black overlay
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-  ctx.fillRect(x, y, width, height);
-  
-  // Apply additional blur on top
-  ctx.filter = 'blur(8px)';
-  ctx.drawImage(ctx.canvas, x, y, width, height, x, y, width, height);
-  ctx.filter = 'none';
-}
+
 
 /**
- * Apply enhanced pixelation to image data for maximum privacy protection
+ * Apply moderate pixelation to image data for balanced privacy protection
  */
 function applyPixelation(
   data: Uint8ClampedArray,
@@ -145,16 +122,16 @@ function applyPixelation(
   height: number,
   pixelSize: number
 ): void {
-  // Use much larger pixel sizes for better privacy protection
-  const enhancedPixelSize = Math.max(pixelSize, 40); // Minimum 40px for effective obscuring
+  // Use moderate pixel sizes for better balance between privacy and readability
+  const moderatePixelSize = Math.max(pixelSize, 6); // Minimum 6px for effective but not aggressive obscuring
   
-  for (let py = 0; py < height; py += enhancedPixelSize) {
-    for (let px = 0; px < width; px += enhancedPixelSize) {
+  for (let py = 0; py < height; py += moderatePixelSize) {
+    for (let px = 0; px < width; px += moderatePixelSize) {
       // Calculate average color for this block
       let r = 0, g = 0, b = 0, a = 0, count = 0;
       
-      for (let dy = 0; dy < enhancedPixelSize && py + dy < height; dy++) {
-        for (let dx = 0; dx < enhancedPixelSize && px + dx < width; dx++) {
+      for (let dy = 0; dy < moderatePixelSize && py + dy < height; dy++) {
+        for (let dx = 0; dx < moderatePixelSize && px + dx < width; dx++) {
           const index = ((py + dy) * width + (px + dx)) * 4;
           r += data[index] ?? 0;
           g += data[index + 1] ?? 0;
@@ -171,8 +148,8 @@ function applyPixelation(
       a = Math.round(a / count);
       
       // Apply the average color to the entire block with solid fill
-      for (let dy = 0; dy < enhancedPixelSize && py + dy < height; dy++) {
-        for (let dx = 0; dx < enhancedPixelSize && px + dx < width; dx++) {
+      for (let dy = 0; dy < moderatePixelSize && py + dy < height; dy++) {
+        for (let dx = 0; dx < moderatePixelSize && px + dx < width; dx++) {
           const index = ((py + dy) * width + (px + dx)) * 4;
           data[index] = r;
           data[index + 1] = g;
@@ -222,9 +199,9 @@ function applyPixelation(
 }
 
 /**
- * Apply enhanced blur effects for maximum privacy protection
+ * Apply subtle blur effects for balanced privacy protection
  */
-function applyBlurEffects(
+function applySubtleBlurEffects(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -232,61 +209,50 @@ function applyBlurEffects(
   height: number,
   detectionType: string
 ): void {
-  let blurStrength = 15; // Base blur strength increased significantly
+  let blurStrength = 3; // Base blur strength for subtle effect
   
-  // Extra strong blur for numerical data
+  // Moderate blur for numerical data
   if (detectionType === 'numerical_data') {
-    blurStrength = 25; // Much stronger blur for numbers
+    blurStrength = 4; // Moderate blur for numbers
   }
   
-  // Strong blur for sensitive data (dates, birthdays, IDs)
+  // Moderate blur for sensitive data (dates, birthdays, IDs)
   if (detectionType === 'sensitive_data') {
-    blurStrength = 20; // Strong blur for sensitive data
+    blurStrength = 3; // Moderate blur for sensitive data
   }
   
-  // Strong blur for barcodes
+  // Moderate blur for barcodes
   if (detectionType === 'barcode') {
-    blurStrength = 30; // Very strong blur for barcodes
+    blurStrength = 5; // Moderate blur for barcodes
   }
   
-  // Strong blur for credit cards
+  // Moderate blur for credit cards
   if (detectionType === 'credit_card') {
-    blurStrength = 35; // Very strong blur for credit cards
+    blurStrength = 6; // Moderate blur for credit cards
   }
   
-  // Strong blur for driver's licenses
+  // Moderate blur for driver's licenses
   if (detectionType === 'drivers_license') {
-    blurStrength = 30; // Strong blur for driver's licenses
+    blurStrength = 5; // Moderate blur for driver's licenses
   }
   
-  // Strong blur for ID cards
+  // Moderate blur for ID cards
   if (detectionType === 'id_card') {
-    blurStrength = 25; // Strong blur for ID cards
+    blurStrength = 4; // Moderate blur for ID cards
   }
   
-  // Strong blur for SSN
+  // Moderate blur for SSN
   if (detectionType === 'ssn') {
-    blurStrength = 40; // Very strong blur for SSN
+    blurStrength = 7; // Moderate blur for SSN
   }
   
-  // Strong blur for names
+  // Moderate blur for names
   if (detectionType === 'name') {
-    blurStrength = 20; // Strong blur for names
+    blurStrength = 3; // Moderate blur for names
   }
   
-  // Apply multiple blur passes for maximum protection
-  for (let i = 0; i < 5; i++) {
-    ctx.filter = `blur(${blurStrength}px)`;
-    ctx.drawImage(ctx.canvas, x, y, width, height, x, y, width, height);
-    ctx.filter = 'none';
-  }
-  
-  // Apply additional blur with different strengths
-  ctx.filter = 'blur(20px)';
-  ctx.drawImage(ctx.canvas, x, y, width, height, x, y, width, height);
-  ctx.filter = 'none';
-  
-  ctx.filter = 'blur(15px)';
+  // Apply single subtle blur pass
+  ctx.filter = `blur(${blurStrength}px)`;
   ctx.drawImage(ctx.canvas, x, y, width, height, x, y, width, height);
   ctx.filter = 'none';
 }

@@ -21,6 +21,7 @@ export type ObscuringTechnique =
   | 'redaction'
   | 'anonymization'
   | 'masking'
+  | 'subtle'
   | 'encryption'
   | 'hashing'
   | 'tokenization';
@@ -82,7 +83,7 @@ export class PIIObscurer {
    */
   private initializeConfig(): ObscuringConfig {
     return {
-      defaultTechnique: 'masking',
+      defaultTechnique: 'subtle',
       enableMultipleTechniques: true,
       preserveFormat: true,
       enableReversible: false,
@@ -160,6 +161,8 @@ export class PIIObscurer {
           return this.anonymizePII(detection);
         case 'masking':
           return this.maskPII(detection);
+        case 'subtle':
+          return this.subtleObscurePII(detection);
         case 'encryption':
           return this.encryptPII(detection);
         case 'hashing':
@@ -167,7 +170,7 @@ export class PIIObscurer {
         case 'tokenization':
           return this.tokenizePII(detection);
         default:
-          return this.maskPII(detection);
+          return this.subtleObscurePII(detection);
       }
     } catch (error) {
       errorHandler.handleProcessingError('pii_obscuring', error as Error);
@@ -211,6 +214,57 @@ export class PIIObscurer {
       metadata: {
         fakeDataType: detection.type,
         seed: this.config.anonymizationSeed,
+      },
+    };
+  }
+
+  /**
+   * Subtle obscure PII (minimal hiding)
+   * @param detection - PII detection
+   * @returns Subtle obscuring result
+   */
+  private subtleObscurePII(detection: PIIDetection): ObscuringResult {
+    let obscuredText = detection.text;
+    
+    switch (detection.type) {
+      case 'credit_card':
+        // Show only last 4 digits
+        obscuredText = detection.text.replace(/\d{12}(\d{4})/g, '**** **** **** $1');
+        break;
+      case 'email':
+        // Show only first letter and domain
+        const [localPart, domainPart] = detection.text.split('@');
+        if (localPart && domainPart) {
+          obscuredText = `${localPart.charAt(0)}***@${domainPart}`;
+        }
+        break;
+      case 'phone':
+        // Show only area code and last 2 digits
+        obscuredText = detection.text.replace(/(\d{3})\d{3}(\d{2})/g, '$1***$2');
+        break;
+      case 'ssn':
+        // Show only last 4 digits
+        obscuredText = detection.text.replace(/\d{5}(\d{4})/g, '***-**$1');
+        break;
+      case 'address':
+        // Show only street number and city
+        obscuredText = detection.text.replace(/(\d+)\s+[A-Za-z\s]+,\s*([A-Za-z\s]+)/g, '$1 *** St, $2');
+        break;
+      default:
+        // For other types, just show first and last character
+        if (detection.text.length > 2) {
+          obscuredText = `${detection.text.charAt(0)}***${detection.text.charAt(detection.text.length - 1)}`;
+        }
+    }
+    
+    return {
+      originalText: detection.text,
+      obscuredText,
+      technique: 'subtle',
+      reversible: false,
+      metadata: {
+        subtleType: detection.type,
+        preservationLevel: 'minimal',
       },
     };
   }
@@ -354,7 +408,8 @@ export class PIIObscurer {
    * @returns Masked credit card
    */
   private maskCreditCard(text: string): string {
-    return text.replace(/\d{4}(?=\d{4})/g, '****');
+    // Show first 4 and last 4 digits, mask the middle
+    return text.replace(/(\d{4})\d{4}(\d{4})/g, '$1****$2');
   }
 
   /**
@@ -369,7 +424,8 @@ export class PIIObscurer {
     if (local.length <= 2) {
       return `${local.charAt(0)}***@${domain}`;
     }
-    return `${local.charAt(0)}${this.config.maskCharacter.repeat(Math.max(local.length - 2, 0))}${local.charAt(Math.max(local.length - 1, 0))}@${domain}`;
+    // Show first and last character of local part, mask the middle
+    return `${local.charAt(0)}***${local.charAt(local.length - 1)}@${domain}`;
   }
 
   /**
@@ -378,7 +434,8 @@ export class PIIObscurer {
    * @returns Masked phone
    */
   private maskPhone(text: string): string {
-    return text.replace(/\d(?=\d{3})/g, this.config.maskCharacter);
+    // Show area code and last 2 digits, mask the middle
+    return text.replace(/(\d{3})\d{3}(\d{2})/g, '$1***$2');
   }
 
   /**
@@ -387,7 +444,8 @@ export class PIIObscurer {
    * @returns Masked SSN
    */
   private maskSSN(text: string): string {
-    return text.replace(/\d(?=\d{4})/g, this.config.maskCharacter);
+    // Show first 3 and last 4 digits, mask the middle
+    return text.replace(/(\d{3})\d{2}(\d{4})/g, '$1**$2');
   }
 
   /**
@@ -396,7 +454,8 @@ export class PIIObscurer {
    * @returns Masked address
    */
   private maskAddress(text: string): string {
-    return text.replace(/\d+\s+[A-Za-z\s]+/g, `${this.config.maskCharacter.repeat(3)} ${this.config.maskCharacter.repeat(3)} ${this.config.maskCharacter.repeat(3)}`);
+    // Show street number and last word, mask the middle
+    return text.replace(/(\d+)\s+([A-Za-z\s]+)\s+([A-Za-z]+)/g, '$1 *** $3');
   }
 
   /**
@@ -522,7 +581,7 @@ export class PIIObscurer {
    * @returns Array of available techniques
    */
   public getAvailableTechniques(): ObscuringTechnique[] {
-    return ['redaction', 'anonymization', 'masking', 'encryption', 'hashing', 'tokenization'];
+    return ['subtle', 'masking', 'anonymization', 'redaction', 'encryption', 'hashing', 'tokenization'];
   }
 
   /**
